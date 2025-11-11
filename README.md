@@ -3,7 +3,7 @@
 pip install -r ./backend/requirements.txt
 
 ## Run
-python main.oy
+python main.py
 
 # For frontend
 ## Install Vite plugin
