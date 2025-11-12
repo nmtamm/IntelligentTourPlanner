@@ -4,7 +4,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import Depends, HTTPException, status, APIRouter
 from sqlalchemy.orm import Session
 
-from ..auth.auth_handler import authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_user, get_password_hash
+from ..auth.auth_handler import (
+    authenticate_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+    get_user,
+    get_password_hash,
+)
 from ..database import get_db
 from ..schemas import Token, UserCreate, UserResponse
 from ..models import User
@@ -17,8 +23,11 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user(db, user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered.")
+    print(f"Debug password: {user.password}")
     hashed_password = get_password_hash(user.password)
-    db_user = User(username=user.username, email=user.email, hashed_password=hashed_password)
+    db_user = User(
+        username=user.username, email=user.email, hashed_password=hashed_password
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -27,8 +36,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/token")
 async def login_for_access_token(
-        form_data: OAuth2PasswordRequestForm = Depends(),
-        db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ) -> Token:
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:

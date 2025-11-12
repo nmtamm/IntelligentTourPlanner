@@ -7,24 +7,6 @@ import { Calendar } from './ui/calendar';
 export default function InputForm() {
     return (
         <div className="min-h-screen w-screen bg-gray-900 text-white flex flex-col">
-            {/* Top Navigation */}
-            <nav className="w-full bg-gray-800 flex justify-between items-center px-8 py-3 shadow-md">
-                <h1 className="text-lg font-semibold">Intelligent tour planner</h1>
-                <div className="flex items-center space-x-4">
-                    <span>Quang Duy</span>
-                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                        <span className="text-sm">👤</span>
-                    </div>
-                </div>
-            </nav>
-
-            {/* Sub Navigation */}
-            <div className="w-full bg-gray-50 flex px-8 py-2 space-x-6 text-sm font-medium">
-                <button className="px-3 py-1 bg-white text-black rounded-md">Plan your adventure</button>
-                <button className="px-3 py-1 bg-white text-black rounded-md">My trips</button>
-                <button className="px-3 py-1 bg-white text-black rounded-md">Settings</button>
-            </div>
-
             {/* Form Card */}
             <main className="flex-grow flex items-center justify-center px-4 sm:px-8 lg:px-[100px] py-6">
                 <Card className="w-full max-w-none bg-white text-black shadow-2xl rounded-2xl h-[90vh] overflow-auto">
