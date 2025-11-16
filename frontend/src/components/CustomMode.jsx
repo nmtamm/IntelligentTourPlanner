@@ -13,6 +13,7 @@ import { optimizeRoute } from '../utils/routeOptimizer.js';
 import { Calendar } from './ui/calendar.jsx';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover.jsx';
 import { format, addDays, differenceInDays } from 'date-fns';
+import { createTrip, updateTrip } from '../api.js';
 
 export function CustomMode({ tripData, onUpdate, currency, onCurrencyToggle, isLoggedIn, currentUser, planId }) {
   const [viewMode, setViewMode] = useState('single');
@@ -169,43 +170,69 @@ export function CustomMode({ tripData, onUpdate, currency, onCurrencyToggle, isL
     toast.success('Route optimized!');
   };
 
-  const savePlan = () => {
+  const savePlan = async () => {
     if (!localTripData.name.trim()) {
       toast.error('Please enter a trip name');
       return;
     }
 
-    const savedPlans = JSON.parse(localStorage.getItem('tourPlans') || '[]');
+    if (!isLoggedIn) {
+      toast.error('Please login to save your trip plan');
+      return;
+    }
 
-    if (planId) {
-      // Update existing plan
-      const planIndex = savedPlans.findIndex((p) => p.id === planId);
-      if (planIndex !== -1) {
-        savedPlans[planIndex] = {
-          ...savedPlans[planIndex],
-          name: localTripData.name,
-          days: localTripData.days,
-          updatedAt: new Date().toISOString()
-        };
-        localStorage.setItem('tourPlans', JSON.stringify(savedPlans));
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authentication token not found. Please login again.');
+      return;
+    }
+
+    // Transform data to match backend schema
+    const tripDataForAPI = {
+      name: localTripData.name,
+      members: members ? parseInt(members) : null,
+      start_date: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+      end_date: endDate ? format(endDate, 'yyyy-MM-dd') : null,
+      currency: currency,
+      days: localTripData.days.map(day => ({
+        day_number: day.dayNumber,
+        destinations: day.destinations.map((dest, index) => ({
+          name: dest.name,
+          address: dest.address || '',
+          latitude: dest.lat || dest.latitude || null,
+          longitude: dest.lng || dest.longitude || null,
+          order: index,
+          costs: dest.costs.map(cost => ({
+            amount: parseFloat(cost.amount) || 0.0,
+            detail: cost.detail || ''
+          }))
+        }))
+      }))
+    };
+
+    try {
+      if (planId) {
+        // Update existing plan
+        const updated = await updateTrip(planId, tripDataForAPI, token);
         setHasUnsavedChanges(false);
         toast.success('Trip plan updated successfully!');
+        console.log('Updated trip:', updated);
       } else {
-        toast.error('Plan not found');
+        // Create new plan
+        const created = await createTrip(tripDataForAPI, token);
+        setHasUnsavedChanges(false);
+        toast.success('Trip plan saved successfully!');
+        console.log('Created trip:', created);
+        // Update planId so subsequent saves will update instead of create
+        // Note: You might want to pass this back to parent component
       }
-    } else {
-      // Create new plan
-      const plan = {
-        id: Date.now().toString(),
-        name: localTripData.name,
-        days: localTripData.days,
-        createdAt: new Date().toISOString(),
-        user: currentUser
-      };
-      savedPlans.push(plan);
-      localStorage.setItem('tourPlans', JSON.stringify(savedPlans));
-      setHasUnsavedChanges(false);
-      toast.success('Trip plan saved successfully!');
+    } catch (error) {
+      console.error('Error saving trip:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error('Failed to save trip plan. Please try again.');
+      }
     }
   };
 

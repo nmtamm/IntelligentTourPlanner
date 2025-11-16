@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers import auth
 from .routers import user
 from .routers import geocode_router
+from .routers import trips
 
 app = FastAPI(debug=True)
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(user.router)
 app.include_router(geocode_router.router)
 app.include_router(auth.router, prefix="/auth")
+app.include_router(trips.router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -3,28 +3,83 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { Card } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
-import { ArrowLeft, Calendar, MapPin, DollarSign, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, DollarSign, Trash2, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getTrips, deleteTrip } from '../api.js';
 
 export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew }) {
   const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadPlans();
   }, [currentUser]);
 
-  const loadPlans = () => {
-    const savedPlans = JSON.parse(localStorage.getItem('tourPlans') || '[]');
-    const userPlans = savedPlans.filter((p) => p.user === currentUser);
-    setPlans(userPlans);
+  const loadPlans = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login to view your saved plans');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const trips = await getTrips(token);
+      // Transform backend data to frontend format
+      const transformedTrips = trips.map(trip => ({
+        id: trip.id,
+        name: trip.name,
+        user: currentUser,
+        createdAt: trip.created_at,
+        updatedAt: trip.updated_at,
+        days: trip.days.map(day => ({
+          id: String(day.id),
+          dayNumber: day.day_number,
+          destinations: day.destinations.map(dest => ({
+            id: String(dest.id),
+            name: dest.name,
+            address: dest.address,
+            lat: dest.latitude,
+            lng: dest.longitude,
+            costs: dest.costs.map(cost => ({
+              id: String(cost.id),
+              amount: cost.amount,
+              detail: cost.detail
+            }))
+          })),
+          optimizedRoute: []
+        }))
+      }));
+      setPlans(transformedTrips);
+    } catch (error) {
+      console.error('Error loading trips:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error('Failed to load trips. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deletePlan = (planId) => {
-    const savedPlans = JSON.parse(localStorage.getItem('tourPlans') || '[]');
-    const filteredPlans = savedPlans.filter((p) => p.id !== planId);
-    localStorage.setItem('tourPlans', JSON.stringify(filteredPlans));
-    loadPlans();
-    toast.success('Plan deleted');
+  const handleDeletePlan = async (planId, e) => {
+    e.stopPropagation();
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login to delete plans');
+      return;
+    }
+
+    try {
+      await deleteTrip(planId, token);
+      loadPlans(); // Reload the list
+      toast.success('Plan deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      toast.error('Failed to delete plan. Please try again.');
+    }
   };
 
   return (
@@ -43,7 +98,12 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew }) {
         </Button>
       </div>
 
-      {plans.length === 0 ? (
+      {loading ? (
+        <Card className="p-12 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#004DB6]" />
+          <p className="text-gray-500">Loading your saved plans...</p>
+        </Card>
+      ) : plans.length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-gray-500">No saved plans yet. Create your first trip plan!</p>
         </Card>
@@ -71,10 +131,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePlan(plan.id);
-                    }}
+                    onClick={(e) => handleDeletePlan(plan.id, e)}
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </Button>
