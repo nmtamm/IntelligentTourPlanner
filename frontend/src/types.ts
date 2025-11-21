@@ -11,6 +11,8 @@ export interface Destination {
   costs: CostItem[];
   lat: number;
   lng: number;
+  longitude: number;
+  latitude: number;
 }
 
 export interface DayPlan {
@@ -18,4 +20,8 @@ export interface DayPlan {
   dayNumber: number;
   destinations: Destination[];
   optimizedRoute: Destination[];
+  routeDistanceKm?: number;
+  routeDurationMin?: number;
+  routeGeometry?: string;
+  routeInstructions?: string[][];
 }

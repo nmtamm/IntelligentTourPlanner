@@ -3,11 +3,12 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
 from .models import Base
 
-DATABASE_URL = "sqlite:///./test.db"  # You can use any database here
+DATABASE_URL = "sqlite:///app/user.db"  # You can use any database here
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 metadata = MetaData()
+
 
 def get_db():
     db = SessionLocal()
@@ -15,5 +16,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 Base.metadata.create_all(bind=engine)

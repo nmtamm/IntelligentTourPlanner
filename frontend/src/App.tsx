@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomMode } from "./components/CustomMode";
 import { AuthModal } from "./components/AuthModal";
 import { SavedPlans } from "./components/SavedPlans";
@@ -11,20 +11,19 @@ import {
   MapPinPen,
 } from "lucide-react";
 import { DayPlan } from "./types";
+import { checkGPS, sendLocationToBackend } from "./utils/geolocation";
 
 type Currency = "USD" | "VND";
 type Language = "EN" | "VI";
 
 export default function App() {
+  const gpsApiUrl = 'http://localhost:8000/api/location';
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(
-    null,
-  );
+  const [currentUser, setCurrentUser] = useState<string | null>(null,);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
-  const [currency, setCurrency] = useState<"USD" | "VND">(
-    "USD",
-  );
+  const [currency, setCurrency] = useState<"USD" | "VND">("USD",);
   const [language, setLanguage] = useState<Language>("EN");
   const [tripData, setTripData] = useState<{
     name: string;
@@ -33,6 +32,22 @@ export default function App() {
   const [currentPlanId, setCurrentPlanId] = useState<
     string | null
   >(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    checkGPS((gps) => {
+      if (gps) {
+        setUserLocation({ lat: gps.latitude, lng: gps.longitude });
+        sendLocationToBackend(gpsApiUrl, (data, error) => {
+          if (error) {
+            console.error("Failed to send GPS:", error);
+          } else {
+            console.log("Location sent to backend:", data);
+          }
+        });
+      }
+    });
+  }, []);
 
   const handleLogin = (email: string) => {
     setIsLoggedIn(true);
@@ -183,6 +198,7 @@ export default function App() {
             isLoggedIn={isLoggedIn}
             currentUser={currentUser}
             planId={currentPlanId}
+            userLocation={userLocation}
           />
         )}
       </main>

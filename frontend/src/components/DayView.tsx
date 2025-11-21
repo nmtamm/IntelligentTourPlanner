@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
+import { geocodeDestination } from '../utils/geocode';
 
 interface DayViewProps {
   day: DayPlan;
@@ -16,19 +17,25 @@ interface DayViewProps {
 export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewProps) {
   const [newDestinationName, setNewDestinationName] = useState('');
 
-  const addDestination = () => {
+  const addDestination = async () => {
     if (!newDestinationName.trim()) {
       toast.error('Please enter a destination name');
       return;
     }
 
+    const geo = await geocodeDestination(newDestinationName);
+    if (!geo || !geo.lat || !geo.lng) {
+      toast.error('Could not find location for this name');
+      return;
+    }
+
     const destination: Destination = {
       id: Date.now().toString(),
-      name: newDestinationName,
+      name: geo.address || newDestinationName,
       address: '',
       costs: [{ id: `${Date.now()}-1`, amount: 0, detail: '' }],
-      lat: 48.8566 + (Math.random() - 0.5) * 0.1,
-      lng: 2.3522 + (Math.random() - 0.5) * 0.1
+      latitude: geo.lat,
+      longitude: geo.lng
     };
 
     onUpdate({
@@ -129,7 +136,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
           ) : (
             day.destinations.map((destination) => {
               const totalCost = destination.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-              
+
               return (
                 <div
                   key={destination.id}
@@ -166,8 +173,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
                             <Input
                               type="number"
                               value={cost.amount || ''}
-                              onChange={(e) => updateCostItem(destination.id, cost.id, { 
-                                amount: parseFloat(e.target.value) || 0 
+                              onChange={(e) => updateCostItem(destination.id, cost.id, {
+                                amount: parseFloat(e.target.value) || 0
                               })}
                               placeholder="0"
                               className="pl-12"
@@ -175,8 +182,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
                           </div>
                           <Input
                             value={cost.detail}
-                            onChange={(e) => updateCostItem(destination.id, cost.id, { 
-                              detail: e.target.value 
+                            onChange={(e) => updateCostItem(destination.id, cost.id, {
+                              detail: e.target.value
                             })}
                             placeholder="Detail (e.g., entrance fee)"
                           />

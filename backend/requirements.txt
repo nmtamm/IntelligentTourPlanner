@@ -4,8 +4,10 @@ pydantic
 sqlalchemy
 databases
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt ==4.0.1
+passlib
 PyJWT
 python-decouple
 python-multipart
 requests
+email-validator

@@ -32,7 +32,9 @@ import {
   PopoverTrigger,
 } from "./ui/popover";
 import { format, addDays, differenceInDays } from "date-fns";
-
+import { createTrip, updateTrip } from '../api.js';
+import { checkGPS, sendLocationToBackend } from "../utils/geolocation";
+import { getOptimizedRoute } from "../utils/geocode";
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
   onUpdate: (data: { name: string; days: DayPlan[] }) => void;
@@ -42,6 +44,7 @@ interface CustomModeProps {
   isLoggedIn: boolean;
   currentUser: string | null;
   planId?: string | null;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 type ViewMode = "single" | "all" | "route-guidance";
@@ -55,14 +58,13 @@ export function CustomMode({
   isLoggedIn,
   currentUser,
   planId,
+  userLocation
 }: CustomModeProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [selectedDay, setSelectedDay] = useState<string>("1");
-  const [routeGuidancePair, setRouteGuidancePair] = useState<
-    [Destination, Destination] | null
+  const [routeGuidancePair, setRouteGuidancePair] = useState<[Destination, Destination] | null
   >(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] =
-    useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [localTripData, setLocalTripData] = useState(tripData);
   const [members, setMembers] = useState("");
   const [preferences, setPreferences] = useState("");
@@ -95,16 +97,16 @@ export function CustomMode({
           newDays.push(
             existingDay
               ? {
-                  ...existingDay,
-                  id: String(i + 1),
-                  dayNumber: i + 1,
-                }
+                ...existingDay,
+                id: String(i + 1),
+                dayNumber: i + 1,
+              }
               : {
-                  id: String(i + 1),
-                  dayNumber: i + 1,
-                  destinations: [],
-                  optimizedRoute: [],
-                },
+                id: String(i + 1),
+                dayNumber: i + 1,
+                destinations: [],
+                optimizedRoute: [],
+              },
           );
         }
 
@@ -133,12 +135,12 @@ export function CustomMode({
 
   // Focus the selected day when Calendar opens or date updates
   useEffect(() => {
-  const selectedEl = document.querySelector(
-    "[aria-selected='true']"
-  ) as HTMLElement | null;
+    const selectedEl = document.querySelector(
+      "[aria-selected='true']"
+    ) as HTMLElement | null;
 
-  selectedEl?.focus();
-}, [startDate, endDate]);
+    selectedEl?.focus();
+  }, [startDate, endDate]);
 
   const handleTripDataChange = (newData: {
     name: string;
@@ -248,99 +250,126 @@ export function CustomMode({
     }
   };
 
-  const findOptimalRoute = () => {
-    const day = localTripData.days.find(
-      (d) => d.id === selectedDay,
-    );
+  const findOptimalRoute = async () => {
+    const day = localTripData.days.find((d) => d.id === selectedDay);
     if (!day || day.destinations.length < 2) {
-      toast.error(
-        "Add at least 2 destinations to optimize route",
-      );
+      toast.error("Add at least 2 destinations to optimize route");
       return;
     }
 
-    const optimized = optimizeRoute(day.destinations);
+    // Convert to backend format
+    const backendDestinations = day.destinations.map(d => ({
+      lat: d.latitude ?? d.lat,
+      lon: d.longitude ?? d.lng,
+      name: d.name,
+    }));
+    const optimized = await getOptimizedRoute(backendDestinations);
+    if (!optimized || !Array.isArray(optimized.optimized_route)) {
+      toast.error("Failed to optimize route");
+      return;
+    }
+
+    // Convert lon to lng for frontend usage
+    const optimizedRoute = optimized.optimized_route.map((dest) => ({
+      ...dest,
+      lng: dest.lon,
+    }));
+
     updateDay(selectedDay, {
       ...day,
-      optimizedRoute: optimized,
+      optimizedRoute,
+      routeDistanceKm: optimized.distance_km,
+      routeDurationMin: optimized.duration_min,
+      routeGeometry: optimized.geometry,
+      routeInstructions: optimized.instructions,
     });
     toast.success("Route optimized!");
   };
 
-  const savePlan = () => {
+  const savePlan = async () => {
     if (!localTripData.name.trim()) {
-      toast.error("Please enter a trip name");
+      toast.error('Please enter a trip name');
       return;
     }
 
-    const savedPlans = JSON.parse(
-      localStorage.getItem("tourPlans") || "[]",
-    );
+    if (!isLoggedIn) {
+      toast.error('Please login to save your trip plan');
+      return;
+    }
 
-    if (planId) {
-      // Update existing plan
-      const planIndex = savedPlans.findIndex(
-        (p: any) => p.id === planId,
-      );
-      if (planIndex !== -1) {
-        savedPlans[planIndex] = {
-          ...savedPlans[planIndex],
-          name: localTripData.name,
-          days: localTripData.days,
-          updatedAt: new Date().toISOString(),
-        };
-        localStorage.setItem(
-          "tourPlans",
-          JSON.stringify(savedPlans),
-        );
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authentication token not found. Please login again.');
+      return;
+    }
+
+    // Transform data to match backend schema
+    const tripDataForAPI = {
+      name: localTripData.name,
+      members: members ? parseInt(members) : null,
+      start_date: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+      end_date: endDate ? format(endDate, 'yyyy-MM-dd') : null,
+      currency: currency,
+      days: localTripData.days.map(day => ({
+        day_number: day.dayNumber,
+        destinations: day.destinations.map((dest, index) => ({
+          name: dest.name,
+          address: dest.address || '',
+          latitude: dest.lat || dest.latitude || null,
+          longitude: dest.lng || dest.longitude || null,
+          order: index,
+          costs: dest.costs.map(cost => ({
+            amount: typeof cost.amount === "string" ? parseFloat(cost.amount) : cost.amount || 0.0,
+            detail: cost.detail || ''
+          }))
+        }))
+      }))
+    };
+
+    try {
+      if (planId) {
+        // Update existing plan
+        const updated = await updateTrip(planId, tripDataForAPI, token);
         setHasUnsavedChanges(false);
-        toast.success("Trip plan updated successfully!");
+        toast.success('Trip plan updated successfully!');
+        console.log('Updated trip:', updated);
       } else {
-        toast.error("Plan not found");
+        // Create new plan
+        const created = await createTrip(tripDataForAPI, token);
+        setHasUnsavedChanges(false);
+        toast.success('Trip plan saved successfully!');
+        console.log('Created trip:', created);
+        // Update planId so subsequent saves will update instead of create
+        // Note: You might want to pass this back to parent component
       }
-    } else {
-      // Create new plan
-      const plan = {
-        id: Date.now().toString(),
-        name: localTripData.name,
-        days: localTripData.days,
-        createdAt: new Date().toISOString(),
-        user: currentUser,
-      };
-      savedPlans.push(plan);
-      localStorage.setItem(
-        "tourPlans",
-        JSON.stringify(savedPlans),
-      );
-      setHasUnsavedChanges(false);
-      toast.success("Trip plan saved successfully!");
+    } catch (error) {
+      const err = error as any;
+      console.error('Error saving trip:', err);
+      if (err.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+      } else {
+        toast.error('Failed to save trip plan. Please try again.');
+      }
     }
   };
 
-  const handleRouteGuidance = (
-    from: Destination,
-    to: Destination,
-  ) => {
-    setRouteGuidancePair([from, to]);
+  const handleRouteGuidance = (day: DayPlan) => {
     setViewMode("route-guidance");
   };
+  const currentDay = localTripData.days.find(
+    (d) => d.id === selectedDay,
+  );
 
-  if (viewMode === "route-guidance" && routeGuidancePair) {
+  if (viewMode === "route-guidance" && currentDay) {
     return (
       <RouteGuidance
-        from={routeGuidancePair[0]}
-        to={routeGuidancePair[1]}
+        day={currentDay}
         onBack={() => {
           setViewMode("single");
-          setRouteGuidancePair(null);
         }}
       />
     );
   }
-
-  const currentDay = localTripData.days.find(
-    (d) => d.id === selectedDay,
-  );
 
   return (
     <div className="space-y-6">
@@ -528,7 +557,7 @@ You can mention some details below to help us design a better plan for you:
                   key={day.id}
                   variant={
                     selectedDay === day.id &&
-                    viewMode === "single"
+                      viewMode === "single"
                       ? "default"
                       : "outline"
                   }
@@ -655,7 +684,8 @@ You can mention some details below to help us design a better plan for you:
         )}
 
         {/* Right: Map */}
-        <div className="relative">
+        <div className={`relative ${isMapExpanded ? "h-[80vh] w-full" : ""}`}>
+
           <Button
             variant="outline"
             size="sm"
@@ -673,6 +703,8 @@ You can mention some details below to help us design a better plan for you:
             viewMode={viewMode}
             selectedDayId={selectedDay}
             onRouteGuidance={handleRouteGuidance}
+            isExpanded={isMapExpanded}
+            userLocation={userLocation}
           />
         </div>
       </div>
