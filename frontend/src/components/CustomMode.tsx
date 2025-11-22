@@ -33,6 +33,8 @@ import {
 import { format, addDays, differenceInDays } from "date-fns";
 import { createTrip, updateTrip } from '../api.js';
 import { getOptimizedRoute } from "../utils/geocode";
+import { fetchItinerary } from "../utils/gemini";
+import { data } from "react-router-dom";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -71,6 +73,13 @@ export function CustomMode({
   const [endDate, setEndDate] = useState<Date>();
   const [isDateUserInput, setIsDateUserInput] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+  const [pendingDestination, setPendingDestination] = useState<{
+    name: string;
+    lat: number;
+    lon: number;
+    address: string;
+  } | null>(null);
 
   // Watch for changes to tripData
   useEffect(() => {
@@ -398,7 +407,7 @@ You can mention some details below to help us design a better plan for you:
             />
 
             <Button
-              onClick={() => {
+              onClick={async () => {
                 if (!preferences.trim()) {
                   toast.error(
                     "Please tell us about your trip preferences first!",
@@ -409,6 +418,14 @@ You can mention some details below to help us design a better plan for you:
                   "Generating your perfect trip plan...",
                 );
                 // AI generation logic will go here
+                try {
+                  // Send the whole preferences text as 'paragraph'
+                  const result = await fetchItinerary({ paragraph: preferences });
+                  console.log("Itinerary from backend:", result);
+                } catch (err) {
+                  console.error("Failed to fetch itinerary:", err);
+                  toast.error("Failed to generate trip plan.");
+                }
               }}
               size="sm"
               className="absolute bottom-2 right-2 bg-[#004DB6] hover:bg-[#003d8f] text-white h-7 w-28"
@@ -665,6 +682,8 @@ You can mention some details below to help us design a better plan for you:
                 }
                 currency={currency}
                 onCurrencyToggle={onCurrencyToggle}
+                pendingDestination={pendingDestination}
+                setPendingDestination={setPendingDestination}
               />
             ) : (
               <AllDaysView
@@ -704,6 +723,9 @@ You can mention some details below to help us design a better plan for you:
             onRouteGuidance={handleRouteGuidance}
             isExpanded={isMapExpanded}
             userLocation={userLocation}
+            onMapClick={data => {
+              setPendingDestination(data);
+            }}
           />
         </div>
       </div>

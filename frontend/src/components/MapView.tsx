@@ -3,7 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { DayPlan, Destination } from "../types";
 import { MapPin, Navigation, X, Map, List } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvent, Polyline } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
 import polyline from '@mapbox/polyline';
 
@@ -12,6 +12,7 @@ interface MapViewProps {
   viewMode: "single" | "all" | "route-guidance";
   selectedDayId: string;
   onRouteGuidance: (day: DayPlan) => void;
+  onMapClick?: (data: { lat: number; lon: number; name: string; address: string }) => void;
 }
 
 function FitBounds({ bounds }) {
@@ -24,13 +25,28 @@ function FitBounds({ bounds }) {
   return null;
 }
 
+function MapClickHandler({ onClick }) {
+  useMapEvent("click", async (e) => {
+    const { lat, lng } = e.latlng;
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+    );
+    const data = await res.json();
+    const name = data.name || data.display_name;
+    const address = data.display_name;
+    onClick({ lat, lon: lng, name, address });
+  });
+  return null;
+}
+
 export function MapView({
   days,
   viewMode,
   selectedDayId,
   onRouteGuidance,
   isExpanded,
-  userLocation
+  userLocation,
+  onMapClick
 }: MapViewProps & { isExpanded?: boolean; userLocation?: { lat: number; lng: number } | null }) {
   const [selectedDestination, setSelectedDestination] =
     useState<Destination | null>(null);
@@ -248,38 +264,44 @@ export function MapView({
                   zoom={13}
                   style={{ height: '100%', width: '100%' }}
                 >
+                  <MapClickHandler onClick={onMapClick} />
+
                   <FitBounds bounds={bounds} />
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
-                  {hasOptimizedRoute && currentDay && currentDay.routeGeometry && (
-                    <>
-                      <Polyline
-                        positions={polyline.decode(currentDay.routeGeometry).filter(
-                          ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
-                        )}
-                        color="#004DB6"
-                        weight={3}
-                        opacity={1}
-                      />
-                    </>
-                  )}
-                  {destinations
-                    .filter(loc =>
-                      typeof loc.latitude === "number" &&
-                      typeof loc.longitude === "number" &&
-                      !isNaN(loc.latitude) &&
-                      !isNaN(loc.longitude)
+                  {
+                    hasOptimizedRoute && currentDay && currentDay.routeGeometry && (
+                      <>
+                        <Polyline
+                          positions={polyline.decode(currentDay.routeGeometry).filter(
+                            ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
+                          )}
+                          color="#004DB6"
+                          weight={3}
+                          opacity={1}
+                        />
+                      </>
                     )
-                    .map((loc, idx) => (
-                      <Marker
-                        key={idx}
-                        position={[loc.latitude, loc.longitude]}
-                      >
-                        <Popup>{loc.name}</Popup>
-                      </Marker>
-                    ))}
+                  }
+                  {
+                    destinations
+                      .filter(loc =>
+                        typeof loc.latitude === "number" &&
+                        typeof loc.longitude === "number" &&
+                        !isNaN(loc.latitude) &&
+                        !isNaN(loc.longitude)
+                      )
+                      .map((loc, idx) => (
+                        <Marker
+                          key={idx}
+                          position={[loc.latitude, loc.longitude]}
+                        >
+                          <Popup>{loc.name}</Popup>
+                        </Marker>
+                      ))
+                  }
                 </MapContainer>
               </div>
 

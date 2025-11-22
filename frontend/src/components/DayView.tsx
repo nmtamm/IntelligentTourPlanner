@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -12,10 +12,25 @@ interface DayViewProps {
   onUpdate: (day: DayPlan) => void;
   currency: 'USD' | 'VND';
   onCurrencyToggle: () => void;
+  pendingDestination: {
+    name: string;
+    lat: number;
+    lon: number;
+    address: string;
+  } | null;
+  setPendingDestination: (dest: any) => void;
 }
 
-export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewProps) {
+export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination }: DayViewProps) {
   const [newDestinationName, setNewDestinationName] = useState('');
+
+  useEffect(() => {
+    if (pendingDestination) {
+      setNewDestinationName(pendingDestination.address || pendingDestination.name || '');
+      // Optionally, clear pendingDestination after using it:
+      // setPendingDestination(null);
+    }
+  }, [pendingDestination, setPendingDestination]);
 
   const addDestination = async () => {
     if (!newDestinationName.trim()) {
@@ -23,10 +38,16 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
       return;
     }
 
-    const geo = await geocodeDestination(newDestinationName);
-    if (!geo || !geo.lat || !geo.lng) {
-      toast.error('Could not find location for this name');
-      return;
+    let geo;
+    if (pendingDestination) {
+      geo = {
+        lat: pendingDestination.lat,
+        lng: pendingDestination.lon,
+        address: pendingDestination.address,
+        name: pendingDestination.name,
+      };
+    } else {
+      geo = await geocodeDestination(newDestinationName);
     }
 
     const destination: Destination = {
@@ -45,6 +66,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
     });
 
     setNewDestinationName('');
+    setPendingDestination(null);
     toast.success('Destination added!');
   };
 
