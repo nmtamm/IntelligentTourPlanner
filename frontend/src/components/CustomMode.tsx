@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { DayPlan, Destination } from "../types";
 import { toast } from "sonner";
-import { optimizeRoute } from "../utils/routeOptimizer";
 import { Calendar } from "./ui/calendar";
 import {
   Popover,
@@ -33,8 +32,8 @@ import {
 } from "./ui/popover";
 import { format, addDays, differenceInDays } from "date-fns";
 import { createTrip, updateTrip } from '../api.js';
-import { checkGPS, sendLocationToBackend } from "../utils/geolocation";
 import { getOptimizedRoute } from "../utils/geocode";
+
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
   onUpdate: (data: { name: string; days: DayPlan[] }) => void;

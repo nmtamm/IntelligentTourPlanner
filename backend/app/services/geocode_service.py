@@ -67,7 +67,6 @@ def route_osrm(points):
 
         optimized_points = [points[i] for i in ordered_indices]
 
-        print("Optimized points:", optimized_points)
         return {
             "success": True,
             "optimized_route": optimized_points,

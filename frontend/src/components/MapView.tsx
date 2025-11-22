@@ -41,6 +41,14 @@ export function MapView({
     number | null
   >(null);
 
+  const currentDay = days.find((d) => d.id === selectedDayId);
+  const hasOptimizedRoute =
+    viewMode === "single" &&
+    currentDay &&
+    currentDay.optimizedRoute.length > 0;
+
+  const mapRef = useRef<any>(null);
+
   // Get destinations based on view mode
   const getDestinations = () => {
     if (viewMode === "single") {
@@ -63,20 +71,21 @@ export function MapView({
       !isNaN(d.longitude)
   );
 
-  const bounds = validDestinations.length
+  const routeCoords = hasOptimizedRoute && currentDay && currentDay.routeGeometry
+    ? polyline.decode(currentDay.routeGeometry)
+    : [];
+
+  const allCoords = [
+    ...validDestinations.map(d => [d.latitude, d.longitude]),
+    ...routeCoords
+  ].filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng));
+
+  const bounds = allCoords.length
     ? [
-      [Math.min(...validDestinations.map(d => d.latitude)), Math.min(...validDestinations.map(d => d.longitude))],
-      [Math.max(...validDestinations.map(d => d.latitude)), Math.max(...validDestinations.map(d => d.longitude))]
+      [Math.min(...allCoords.map(([lat]) => lat)), Math.min(...allCoords.map(([_, lng]) => lng))],
+      [Math.max(...allCoords.map(([lat]) => lat)), Math.max(...allCoords.map(([_, lng]) => lng))]
     ]
     : undefined;
-
-  const currentDay = days.find((d) => d.id === selectedDayId);
-  const hasOptimizedRoute =
-    viewMode === "single" &&
-    currentDay &&
-    currentDay.optimizedRoute.length > 0;
-
-  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     if (mapRef.current) {
@@ -244,6 +253,18 @@ export function MapView({
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
+                  {hasOptimizedRoute && currentDay && currentDay.routeGeometry && (
+                    <>
+                      <Polyline
+                        positions={polyline.decode(currentDay.routeGeometry).filter(
+                          ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
+                        )}
+                        color="#004DB6"
+                        weight={3}
+                        opacity={1}
+                      />
+                    </>
+                  )}
                   {destinations
                     .filter(loc =>
                       typeof loc.latitude === "number" &&
@@ -259,18 +280,6 @@ export function MapView({
                         <Popup>{loc.name}</Popup>
                       </Marker>
                     ))}
-                  {hasOptimizedRoute && currentDay && currentDay.routeGeometry && (
-                    <>
-                      <Polyline
-                        positions={polyline.decode(currentDay.routeGeometry).filter(
-                          ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
-                        )}
-                        color="#004DB6"
-                        weight={3}
-                        opacity={1}
-                      />
-                    </>
-                  )}
                 </MapContainer>
               </div>
 

@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { DayPlan, Destination } from '../types';
 import { getTrips, deleteTrip } from '../api.js';
 
-
 interface SavedPlansProps {
   currentUser: string;
   onBack: () => void;
