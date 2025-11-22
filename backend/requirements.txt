@@ -10,4 +10,5 @@ PyJWT
 python-decouple
 python-multipart
 requests
+google-genai
 email-validator
