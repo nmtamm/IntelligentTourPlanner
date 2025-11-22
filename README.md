@@ -8,9 +8,9 @@ cd backend
 docker build -t myapp .
 ```
 
-## Run
+## Run to save database through devices:
 ```
-docker run --rm -it -p 8000:8000 myapp
+docker run --rm -it -p 8000:8000 -v path-to-your-root-directory\backend:/app myapp
 ```
 
 # For frontend
@@ -23,9 +23,26 @@ cd frontend
 npm install tailwindcss @tailwindcss/vite
 ```
 
-## Install missing dependencies (if needed)
+## Install dependencies (if needed)
 ```
-npm install @radix-ui/react-slot class-variance-authority sonner clsx date-fns tailwind-merge @radix-ui/react-label @radix-ui/react-dialog lucide-react @radix-ui/react-popover react-day-picker
+npm install 
+```
+
+## If your install ever breaks:
+```
+rm -rf node_modules package-lock.json
+npm install 
+```
+
+## Install leaflet and react-leaflet for OpenStreetMap API:
+```
+npm install react-leaflet@4.0.0
+npm install --save-dev @types/leaflet
+```
+
+## Install Polyline to draw optimal route using OSRM:
+```
+npm install @mapbox/polyline
 ```
 
 ## Run
