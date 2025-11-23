@@ -13,6 +13,12 @@ docker build -t myapp .
 docker run --rm -it -p 8000:8000 -v path-to-your-root-directory\backend:/app myapp
 ```
 
+## Run with API Key of Gemini:
+Send me an email or sth like that to get the real key for testing purpose:
+```
+docker run --rm -it -p 8000:8000 -v path-to-your-root-directory\backend:/app -e GEMINI_API_KEY=real_key myapp
+```
+
 # For frontend
 ```
 cd frontend

@@ -34,7 +34,7 @@ def list_tourist_recommendations(
 ):
     try:
         prompt = f"""
-    Extract as much information as possible from the following paragraph about a trip. 
+     Extract as much information as possible from the following paragraph about a trip. 
     Fill the structured JSON fields below. If a field cannot be extracted, leave it empty or null.
 
     Paragraph:

@@ -6,6 +6,7 @@ import { MapPin, Navigation, X, Map, List } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvent, Polyline } from "react-leaflet";
 import 'leaflet/dist/leaflet.css';
 import polyline from '@mapbox/polyline';
+import { reverseGeocode } from "../utils/reverseGeocode";
 
 interface MapViewProps {
   days: DayPlan[];
@@ -28,12 +29,7 @@ function FitBounds({ bounds }) {
 function MapClickHandler({ onClick }) {
   useMapEvent("click", async (e) => {
     const { lat, lng } = e.latlng;
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
-    );
-    const data = await res.json();
-    const name = data.name || data.display_name;
-    const address = data.display_name;
+    const { name, address } = await reverseGeocode(lat, lng);
     onClick({ lat, lon: lng, name, address });
   });
   return null;
@@ -48,24 +44,17 @@ export function MapView({
   userLocation,
   onMapClick
 }: MapViewProps & { isExpanded?: boolean; userLocation?: { lat: number; lng: number } | null }) {
-  const [selectedDestination, setSelectedDestination] =
-    useState<Destination | null>(null);
-  const [mapListView, setMapListView] = useState<
-    "map" | "list"
-  >("map");
-  const [selectedPairIndex, setSelectedPairIndex] = useState<
-    number | null
-  >(null);
+
+  const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
+  const [mapListView, setMapListView] = useState<"map" | "list">("map");
+  const [selectedPairIndex, setSelectedPairIndex] = useState<number | null>(null);
 
   const currentDay = days.find((d) => d.id === selectedDayId);
-  const hasOptimizedRoute =
-    viewMode === "single" &&
-    currentDay &&
-    currentDay.optimizedRoute.length > 0;
+  const hasOptimizedRoute = viewMode === "single" && currentDay && currentDay.optimizedRoute.length > 0;
 
   const mapRef = useRef<any>(null);
 
-  // Get destinations based on view mode
+  // Determine destinations to display based on view mode
   const getDestinations = () => {
     if (viewMode === "single") {
       const day = days.find((d) => d.id === selectedDayId);
@@ -87,6 +76,7 @@ export function MapView({
       !isNaN(d.longitude)
   );
 
+  // Calculate bounds to fit all markers and route
   const routeCoords = hasOptimizedRoute && currentDay && currentDay.routeGeometry
     ? polyline.decode(currentDay.routeGeometry)
     : [];
@@ -103,6 +93,13 @@ export function MapView({
     ]
     : undefined;
 
+  // Determine map center
+  const defaultCenter: [number, number] = [10.770048, 106.699707];
+  const mapCenter: [number, number] = userLocation
+    ? [userLocation.lat, userLocation.lng]
+    : defaultCenter;
+
+  // Handle map resize on expansion change
   useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
@@ -110,67 +107,6 @@ export function MapView({
       }, 0);
     }
   }, [isExpanded]);
-
-  // Calculate map bounds
-  if (destinations.length === 0) {
-    return (
-      <Card className="p-6 h-[700px] flex items-center justify-center sticky top-6">
-        <div className="text-center text-gray-500">
-          <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-          <p>Add destinations to see them on the map</p>
-        </div>
-      </Card>
-    );
-  }
-
-  const lats = destinations.map((d) => d.lat);
-  const lngs = destinations.map((d) => d.lng);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const centerLat = (minLat + maxLat) / 2;
-  const centerLng = (minLng + maxLng) / 2;
-
-  const mapWidth = 700;
-  const mapHeight = 600;
-  const padding = 60;
-  const defaultCenter: [number, number] = [10.770048, 106.699707];
-  const mapCenter: [number, number] = userLocation
-    ? [userLocation.lat, userLocation.lng]
-    : defaultCenter;
-  const latRange = maxLat - minLat || 0.1;
-  const lngRange = maxLng - minLng || 0.1;
-
-  const toMapX = (lng: number) => {
-    return (
-      padding +
-      ((lng - minLng) / lngRange) * (mapWidth - 2 * padding)
-    );
-  };
-
-  const toMapY = (lat: number) => {
-    return (
-      mapHeight -
-      (padding +
-        ((lat - minLat) / latRange) * (mapHeight - 2 * padding))
-    );
-  };
-
-  // Generate route pairs
-  const getRoutePairs = (): Array<
-    [Destination, Destination]
-  > => {
-    if (!hasOptimizedRoute || !currentDay) return [];
-    const route = currentDay.optimizedRoute;
-    const pairs: Array<[Destination, Destination]> = [];
-    for (let i = 0; i < route.length - 1; i++) {
-      pairs.push([route[i], route[i + 1]]);
-    }
-    return pairs;
-  };
-
-  const routePairs = getRoutePairs();
 
   return (
     <Card className="p-6 sticky top-6">

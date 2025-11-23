@@ -1,4 +1,3 @@
-// Example using fetch
 export async function fetchItinerary(params) {
     const response = await fetch('http://localhost:8000/api/itinerary', {
         method: 'POST',
