@@ -30,6 +30,8 @@ class UserInDB(UserResponse):
 class CostBase(BaseModel):
     amount: float = 0.0
     detail: Optional[str] = None
+    originalAmount: float = 0.0
+    originalCurrency: str = "USD"
 
 class CostCreate(CostBase):
     pass
