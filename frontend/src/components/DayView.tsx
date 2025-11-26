@@ -6,7 +6,6 @@ import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
 import { geocodeDestination } from '../utils/geocode';
-import { convertCurrency } from '../utils/exchangerate';
 
 interface DayViewProps {
   day: DayPlan;
@@ -23,29 +22,6 @@ interface DayViewProps {
 }
 
 export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination }: DayViewProps) {
-  const [displayCosts, setDisplayCosts] = useState(day.destinations);
-
-  useEffect(() => {
-    const updateDisplayCosts = async () => {
-      const updatedDestinations = await Promise.all(day.destinations.map(async (dest) => {
-        const updatedCosts = await Promise.all(dest.costs.map(async (cost) => {
-          if (cost.originalCurrency !== currency) {
-            const convertedAmount = await convertCurrency(
-              cost.originalAmount || 0,
-              cost.originalCurrency.toLowerCase(),
-              currency.toLowerCase()
-            );
-            return { ...cost, amount: convertedAmount };
-          } else {
-            return { ...cost, amount: cost.originalAmount };
-          }
-        }));
-        return { ...dest, costs: updatedCosts };
-      }));
-      setDisplayCosts(updatedDestinations);
-    };
-    updateDisplayCosts();
-  }, [currency, day.destinations]);
 
   const [newDestinationName, setNewDestinationName] = useState('');
 
@@ -73,6 +49,16 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       };
     } else {
       geo = await geocodeDestination(newDestinationName);
+    }
+
+    // Prevent duplicate addition
+    if (day.destinations.some(d =>
+      d.name === (geo.address || newDestinationName) &&
+      d.latitude === geo.lat &&
+      d.longitude === geo.lng
+    )) {
+      toast.error('This destination already exists.');
+      return;
     }
 
     const destination: Destination = {
@@ -156,7 +142,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   };
 
   const calculateDayTotal = () => {
-    return displayCosts.reduce((total, dest) => {
+    return day.destinations.reduce((total, dest) => {
       return total + dest.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
     }, 0);
   };
@@ -184,12 +170,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
         {/* Destinations List */}
         <div className="space-y-4 max-h-[600px] overflow-y-auto">
-          {displayCosts.length === 0 ? (
+          {day.destinations.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
               No destinations yet. Add a destination or click on the map!
             </p>
           ) : (
-            displayCosts.map((destination) => {
+            day.destinations.map((destination) => {
               const totalCost = destination.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
 
               return (

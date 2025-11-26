@@ -1,25 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { ArrowLeft, Calendar, MapPin, DollarSign, Trash2, Plus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, DollarSign, Trash2, Plus, Loader2, Currency, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { DayPlan, Destination } from '../types';
 import { getTrips, deleteTrip } from '../api.js';
+import { convertAllTrips } from '../utils/exchangerate';
 
 interface SavedPlansProps {
   currentUser: string;
   onBack: () => void;
   onLoadPlan: (plan: { id: string; name: string; days: DayPlan[] }) => void;
   onCreateNew: () => void;
+  currency: string;
 }
 
-export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew }: SavedPlansProps) {
+export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, currency }: SavedPlansProps) {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const currencySymbol = currency === 'USD' ? '$' : '₫';
 
   useEffect(() => {
     loadPlans();
-  }, [currentUser]);
+  }, [currentUser, currency]);
 
   const loadPlans = async () => {
     const token = localStorage.getItem('token');
@@ -50,13 +53,18 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew }: Sav
             costs: dest.costs.map(cost => ({
               id: String(cost.id),
               amount: cost.amount,
-              detail: cost.detail
+              detail: cost.detail,
+              originalAmount: cost.originalAmount,
+              originalCurrency: cost.originalCurrency
             }))
           })),
           optimizedRoute: []
         }))
       }));
-      setPlans(transformedTrips);
+
+      const convertedTrips = await convertAllTrips(transformedTrips, currency);
+      setPlans(convertedTrips);
+
     } catch (error) {
       const err = error as any;
       console.error('Error loading trips:', err);
@@ -154,8 +162,8 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew }: Sav
                     {totalDestinations} destinations
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
-                    <DollarSign className="w-4 h-4" />
-                    ${totalCost.toFixed(2)} total
+                    <Wallet className="w-4 h-4" />
+                    {currencySymbol}{totalCost.toFixed(2)} total
                   </div>
                 </div>
 

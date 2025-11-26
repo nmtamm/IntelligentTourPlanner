@@ -173,6 +173,7 @@ export default function App() {
             onBack={() => setShowSavedPlans(false)}
             onLoadPlan={handleLoadPlan}
             onCreateNew={handleCreateNewPlan}
+            currency={currency}
           />
         ) : (
           <CustomMode

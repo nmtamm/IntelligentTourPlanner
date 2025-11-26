@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DayView } from "./DayView";
 import { AllDaysView } from "./AllDaysView";
 import { MapView } from "./MapView";
@@ -35,6 +35,7 @@ import { createTrip, updateTrip } from '../api.js';
 import { getOptimizedRoute } from "../utils/geocode";
 import { fetchItinerary } from "../utils/gemini";
 import { data } from "react-router-dom";
+import { convertCurrency, convertAllDays } from "../utils/exchangerate";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -73,6 +74,8 @@ export function CustomMode({
   const [endDate, setEndDate] = useState<Date>();
   const [isDateUserInput, setIsDateUserInput] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+  const [convertedDays, setConvertedDays] = useState(localTripData.days);
 
   const [pendingDestination, setPendingDestination] = useState<{
     name: string;
@@ -150,6 +153,15 @@ export function CustomMode({
     selectedEl?.focus();
   }, [startDate, endDate]);
 
+  // Convert all days' costs when currency changes or days change
+  useEffect(() => {
+    const updateConvertedDays = async () => {
+      const result = await convertAllDays(localTripData.days, currency);
+      setConvertedDays(result);
+    };
+    updateConvertedDays();
+  }, [localTripData.days, currency]);
+
   const handleTripDataChange = (newData: {
     name: string;
     days: DayPlan[];
@@ -224,11 +236,9 @@ export function CustomMode({
           ...dest,
           costs: dest.costs.map((cost) => ({
             ...cost,
-            amount:
-              cost.amount ||
-              Math.floor(
-                (Math.random() * 30 + 10) * multiplier,
-              ),
+            amount: cost.amount || Math.floor((Math.random() * 30 + 10) * multiplier),
+            originalAmount: cost.amount || 0.0,
+            originalCurrency: currency
           })),
         })),
       };
@@ -242,11 +252,9 @@ export function CustomMode({
           ...dest,
           costs: dest.costs.map((cost) => ({
             ...cost,
-            amount:
-              cost.amount ||
-              Math.floor(
-                (Math.random() * 30 + 10) * multiplier,
-              ),
+            amount: cost.amount || Math.floor((Math.random() * 30 + 10) * multiplier),
+            originalAmount: cost.amount || 0.0,
+            originalCurrency: currency
           })),
         })),
       }));
@@ -328,7 +336,10 @@ export function CustomMode({
           order: index,
           costs: dest.costs.map(cost => ({
             amount: typeof cost.amount === "string" ? parseFloat(cost.amount) : cost.amount || 0.0,
+            originalAmount: cost.originalAmount || 0.0,
+            originalCurrency: cost.originalCurrency || currency,
             detail: cost.detail || ''
+
           }))
         }))
       }))
@@ -676,7 +687,7 @@ You can mention some details below to help us design a better plan for you:
           <div className="space-y-4">
             {viewMode === "single" && currentDay ? (
               <DayView
-                day={currentDay}
+                day={convertedDays.find(d => d.id === selectedDay)!}
                 onUpdate={(updatedDay) =>
                   updateDay(selectedDay, updatedDay)
                 }
@@ -717,7 +728,7 @@ You can mention some details below to help us design a better plan for you:
             )}
           </Button>
           <MapView
-            days={localTripData.days}
+            days={convertedDays}
             viewMode={viewMode}
             selectedDayId={selectedDay}
             onRouteGuidance={handleRouteGuidance}
