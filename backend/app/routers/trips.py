@@ -45,7 +45,9 @@ def create_trip(
                 address=dest_data.address,
                 latitude=dest_data.latitude,
                 longitude=dest_data.longitude,
-                order=dest_data.order
+                order=dest_data.order,
+                fsq_place_id=dest_data.fsq_place_id,
+                destination_type=dest_data.destination_type
             )
             db.add(db_destination)
             db.flush()
@@ -142,7 +144,9 @@ def update_trip(
                     address=dest_data.address,
                     latitude=dest_data.latitude,
                     longitude=dest_data.longitude,
-                    order=dest_data.order
+                    order=dest_data.order,
+                    fsq_place_id=dest_data.fsq_place_id,
+                    destination_type=dest_data.destination_type
                 )
                 db.add(db_destination)
                 db.flush()

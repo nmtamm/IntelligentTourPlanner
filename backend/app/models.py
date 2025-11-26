@@ -1,10 +1,17 @@
 # models.py
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
+import enum
 
 Base = declarative_base()
+
+
+class PlaceType(enum.Enum):
+    STAY = "stay"
+    EAT = "eat"
+    TRAVEL = "travel"
 
 class User(Base):
     __tablename__ = "users"
@@ -56,9 +63,14 @@ class Destination(Base):
     longitude = Column(Float, nullable=True)
     order = Column(Integer, default=0)  # Order in the route
 
+    # Foursquare integration
+    fsq_place_id = Column(String, ForeignKey("foursquare_places.fsq_place_id"), nullable=True)
+    destination_type = Column(String, nullable=True)  # 'stay', 'eat', 'travel', 'other'
+
     # Relationships
     day = relationship("Day", back_populates="destinations")
     costs = relationship("Cost", back_populates="destination", cascade="all, delete-orphan")
+    foursquare_place = relationship("FoursquarePlace", back_populates="destinations")
 
 
 class Cost(Base):
@@ -70,3 +82,39 @@ class Cost(Base):
 
     # Relationship
     destination = relationship("Destination", back_populates="costs")
+
+
+class FoursquarePlace(Base):
+    __tablename__ = "foursquare_places"
+
+    # Primary identifier from Foursquare
+    fsq_place_id = Column(String, primary_key=True, index=True)
+
+    # Place type classification
+    place_type = Column(String, nullable=False, index=True)  # 'stay', 'eat', 'travel'
+
+    # Basic information
+    name = Column(String, nullable=False)
+    address = Column(String, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+
+    # Rating and pricing
+    rating = Column(Float, nullable=True)  # 0-10 scale
+    price_level = Column(Integer, nullable=True)  # 1-4 scale
+
+    # Contact and hours
+    phone = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    hours = Column(Text, nullable=True)  # JSON string
+
+    # media and metadata
+    categories = Column(Text, nullable=True)  # JSON string - array of category objects
+    photos = Column(Text, nullable=True)  # JSON string - array of photo objects
+    description = Column(Text, nullable=True)
+
+    # Cache management
+    cached_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship - destinations can reference this place
+    destinations = relationship("Destination", back_populates="foursquare_place")
