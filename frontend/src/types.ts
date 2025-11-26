@@ -1,7 +1,9 @@
 export interface CostItem {
   id: string;
-  amount: number;
+  amount: number; // for display purpose
   detail: string;
+  originalAmount: number; // always store the initial input
+  originalCurrency: 'USD' | 'VND'; // always store the initial currency
 }
 
 export interface Destination {
@@ -25,3 +27,4 @@ export interface DayPlan {
   routeGeometry?: string;
   routeInstructions?: string[][];
 }
+

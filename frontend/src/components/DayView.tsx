@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,6 +6,7 @@ import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
 import { geocodeDestination } from '../utils/geocode';
+import { convertCurrency } from '../utils/exchangerate';
 
 interface DayViewProps {
   day: DayPlan;
@@ -22,6 +23,30 @@ interface DayViewProps {
 }
 
 export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination }: DayViewProps) {
+  const [displayCosts, setDisplayCosts] = useState(day.destinations);
+
+  useEffect(() => {
+    const updateDisplayCosts = async () => {
+      const updatedDestinations = await Promise.all(day.destinations.map(async (dest) => {
+        const updatedCosts = await Promise.all(dest.costs.map(async (cost) => {
+          if (cost.originalCurrency !== currency) {
+            const convertedAmount = await convertCurrency(
+              cost.originalAmount || 0,
+              cost.originalCurrency.toLowerCase(),
+              currency.toLowerCase()
+            );
+            return { ...cost, amount: convertedAmount };
+          } else {
+            return { ...cost, amount: cost.originalAmount };
+          }
+        }));
+        return { ...dest, costs: updatedCosts };
+      }));
+      setDisplayCosts(updatedDestinations);
+    };
+    updateDisplayCosts();
+  }, [currency, day.destinations]);
+
   const [newDestinationName, setNewDestinationName] = useState('');
 
   useEffect(() => {
@@ -54,7 +79,13 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       id: Date.now().toString(),
       name: geo.address || newDestinationName,
       address: '',
-      costs: [{ id: `${Date.now()}-1`, amount: 0, detail: '' }],
+      costs: [{
+        id: `${Date.now()}-1`,
+        amount: 0,
+        detail: '',
+        originalAmount: 0,
+        originalCurrency: currency, // store the initial currency
+      }],
       latitude: geo.lat,
       longitude: geo.lng
     };
@@ -93,7 +124,9 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     const newCost: CostItem = {
       id: `${Date.now()}-${destination.costs.length}`,
       amount: 0,
-      detail: ''
+      detail: '',
+      originalAmount: 0,
+      originalCurrency: currency,
     };
 
     updateDestination(destinationId, {
@@ -123,7 +156,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   };
 
   const calculateDayTotal = () => {
-    return day.destinations.reduce((total, dest) => {
+    return displayCosts.reduce((total, dest) => {
       return total + dest.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
     }, 0);
   };
@@ -151,12 +184,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
         {/* Destinations List */}
         <div className="space-y-4 max-h-[600px] overflow-y-auto">
-          {day.destinations.length === 0 ? (
+          {displayCosts.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
               No destinations yet. Add a destination or click on the map!
             </p>
           ) : (
-            day.destinations.map((destination) => {
+            displayCosts.map((destination) => {
               const totalCost = destination.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
 
               return (
@@ -196,7 +229,9 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                               type="number"
                               value={cost.amount || ''}
                               onChange={(e) => updateCostItem(destination.id, cost.id, {
-                                amount: parseFloat(e.target.value) || 0
+                                amount: parseFloat(e.target.value) || 0,
+                                originalAmount: parseFloat(e.target.value) || 0,
+                                originalCurrency: currency,
                               })}
                               placeholder="0"
                               className="pl-12"
