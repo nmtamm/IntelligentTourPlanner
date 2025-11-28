@@ -21,6 +21,7 @@ import {
   Minimize2,
   Sparkles,
   Waypoints,
+  Loader2,
 } from "lucide-react";
 import { DayPlan, Destination } from "../types";
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ import { createTrip, updateTrip } from '../api.js';
 import { getOptimizedRoute } from "../utils/geocode";
 import { fetchItinerary } from "../utils/gemini";
 import { data } from "react-router-dom";
+import { geocodeDestination } from "../utils/geocode";
+import { makeDestinationFromGeo } from "../utils/destinationFactory";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -46,6 +49,10 @@ interface CustomModeProps {
   currentUser: string | null;
   planId?: string | null;
   userLocation?: { lat: number; lng: number } | null;
+  manualStepAction?: string | null;
+  onManualActionComplete?: () => void;
+  resetToDefault?: boolean;
+  showAllDaysOnLoad?: boolean;
 }
 
 type ViewMode = "single" | "all" | "route-guidance";
@@ -59,12 +66,15 @@ export function CustomMode({
   isLoggedIn,
   currentUser,
   planId,
-  userLocation
+  userLocation,
+  manualStepAction,
+  onManualActionComplete,
+  resetToDefault,
+  showAllDaysOnLoad,
 }: CustomModeProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [selectedDay, setSelectedDay] = useState<string>("1");
-  const [routeGuidancePair, setRouteGuidancePair] = useState<[Destination, Destination] | null
-  >(null);
+  const [routeGuidancePair, setRouteGuidancePair] = useState<[Destination, Destination] | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [localTripData, setLocalTripData] = useState(tripData);
   const [members, setMembers] = useState("");
@@ -73,6 +83,10 @@ export function CustomMode({
   const [endDate, setEndDate] = useState<Date>();
   const [isDateUserInput, setIsDateUserInput] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [pendingDestination, setPendingDestination] = useState<{
     name: string;
@@ -80,6 +94,30 @@ export function CustomMode({
     lon: number;
     address: string;
   } | null>(null);
+
+  // Reset to default view states when User Manual is opened
+  useEffect(() => {
+    if (resetToDefault) {
+      const firstDay = localTripData.days[0];
+
+      setViewMode("single");
+      setIsMapExpanded(false);
+      setRouteGuidancePair(null);
+
+      if (firstDay) {
+        setSelectedDay(firstDay.id);
+      }
+    }
+  }, [resetToDefault, localTripData.days]);
+
+  // Switch to View All Days when a plan is loaded from My Plans
+  useEffect(() => {
+    if (showAllDaysOnLoad) {
+      setViewMode("all");
+      setIsMapExpanded(false);
+      setRouteGuidancePair(null);
+    }
+  }, [showAllDaysOnLoad]);
 
   // Watch for changes to tripData
   useEffect(() => {
@@ -150,6 +188,57 @@ export function CustomMode({
     selectedEl?.focus();
   }, [startDate, endDate]);
 
+  // Handle manual step actions from User Manual
+  useEffect(() => {
+    if (!manualStepAction || !onManualActionComplete) return;
+
+    const handleAction = async () => {
+      switch (manualStepAction) {
+        case 'add-destination': {
+          // Add Ho Chi Minh and Ha Noi as sample destinations
+          const day = localTripData.days.find((d) => d.id === selectedDay);
+          if (!day) break;
+          if (day.destinations.length > 1) break;
+
+          const hoChiMinhGeo = await geocodeDestination("Ho Chi Minh City, Vietnam");
+          const haNoiGeo = await geocodeDestination("Ha Noi, Vietnam");
+
+          if (!hoChiMinhGeo || !haNoiGeo) {
+            toast.error("Failed to geocode sample destinations.");
+            return;
+          }         
+
+          const hoChiMinh = makeDestinationFromGeo(hoChiMinhGeo, "Ho Chi Minh City");
+          const haNoi = makeDestinationFromGeo(haNoiGeo, "Ha Noi");
+
+          updateDay(selectedDay, {
+            ...day,
+            destinations: [...day.destinations, hoChiMinh, haNoi],
+            optimizedRoute: [],
+          });
+
+          toast.success('Sample destinations added!');
+          break;
+        }
+
+        case 'optimize-route': {
+          // Trigger route optimization
+          findOptimalRoute();
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      // Clear the action
+      onManualActionComplete();
+    };
+
+    handleAction();
+  }, [manualStepAction, onManualActionComplete, selectedDay, localTripData.days]);
+
+
   const handleTripDataChange = (newData: {
     name: string;
     days: DayPlan[];
@@ -208,15 +297,22 @@ export function CustomMode({
     });
   };
 
-  const autoEstimateCosts = () => {
+  const autoEstimateCosts = async () => {
+    setIsEstimating(true);
     const multiplier = currency === "VND" ? 25000 : 1;
+
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     if (viewMode === "single") {
       // Estimate for current day
       const day = localTripData.days.find(
         (d) => d.id === selectedDay,
       );
-      if (!day) return;
+      if (!day) {
+        setIsEstimating(false);
+        return;
+      }
 
       const updatedDay = {
         ...day,
@@ -256,6 +352,7 @@ export function CustomMode({
       });
       toast.success("Costs estimated for all days");
     }
+    setIsEstimating(false);
   };
 
   const findOptimalRoute = async () => {
@@ -264,6 +361,8 @@ export function CustomMode({
       toast.error("Add at least 2 destinations to optimize route");
       return;
     }
+
+    setIsOptimizing(true);
 
     // Convert to backend format
     const backendDestinations = day.destinations.map(d => ({
@@ -278,10 +377,18 @@ export function CustomMode({
     }
 
     // Convert lon to lng for frontend usage
-    const optimizedRoute = optimized.optimized_route.map((dest) => ({
-      ...dest,
-      lng: dest.lon,
-    }));
+    const optimizedRoute = optimized.optimized_route.map((dest) => {
+      const latitude = dest.latitude ?? dest.lat;
+      const longitude = dest.longitude ?? dest.lon;
+
+      return {
+        ...dest,
+        lat: latitude,
+        lng: longitude,
+        latitude,
+        longitude,
+      };
+    });
 
     updateDay(selectedDay, {
       ...day,
@@ -292,6 +399,7 @@ export function CustomMode({
       routeInstructions: optimized.instructions,
     });
     toast.success("Route optimized!");
+    setIsOptimizing(false);
   };
 
   const savePlan = async () => {
@@ -299,6 +407,8 @@ export function CustomMode({
       toast.error('Please enter a trip name');
       return;
     }
+
+    setIsSaving(true);
 
     if (!isLoggedIn) {
       toast.error('Please login to save your trip plan');
@@ -359,6 +469,8 @@ export function CustomMode({
         toast.error('Failed to save trip plan. Please try again.');
       }
     }
+
+    setIsSaving(false);
   };
 
   const handleRouteGuidance = (day: DayPlan) => {
@@ -381,7 +493,9 @@ export function CustomMode({
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
+
+      {/* AI Trip Generation Card */}
+      <Card className="max-w-7xl p-6 mx-auto">
         <div className="space-y-6">
           <div className="text-center mb-8">
             <h2 className="text-[#004DB6] mb-2 font-bold">
@@ -392,7 +506,7 @@ export function CustomMode({
             </p>
           </div>
 
-          <div className="relative">
+          <div className="relative" data-tutorial="generate-plan">
             <Textarea
               value={preferences}
               onChange={(e) => setPreferences(e.target.value)}
@@ -414,6 +528,7 @@ You can mention some details below to help us design a better plan for you:
                   );
                   return;
                 }
+                setIsGenerating(true);
                 toast.success(
                   "Generating your perfect trip plan...",
                 );
@@ -426,18 +541,30 @@ You can mention some details below to help us design a better plan for you:
                   console.error("Failed to fetch itinerary:", err);
                   toast.error("Failed to generate trip plan.");
                 }
+                setIsGenerating(false);
               }}
               size="sm"
               className="absolute bottom-2 right-2 bg-[#004DB6] hover:bg-[#003d8f] text-white h-7 w-28"
+              disabled={isGenerating}
             >
-              <Sparkles className="w-2 h-2 mr-1" />
-              Generate
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-2 h-2 mr-1 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-2 h-2 mr-1" />
+                  Generate
+                </>
+              )}
             </Button>
           </div>
         </div>
       </Card>
-
-      <Card className="p-6">
+      
+      {/* Trip Details Card */}
+      <Card className="max-w-7xl p-6 mx-auto">
         <div className="space-y-4">
           {/* Trip Name & Number of Members*/}
           <div className="grid grid-cols-2 gap-4">
@@ -446,20 +573,34 @@ You can mention some details below to help us design a better plan for you:
               onChange={(e) => updateTripName(e.target.value)}
               placeholder="Enter trip name..."
               className="w-full"
+              data-tutorial="trip-name"
             />
 
             <Input
               type="number"
               value={members}
-              onChange={(e) => setMembers(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (value === "") {
+                  setMembers("");
+                  return;
+                }
+
+                if (Number(value) > 0 && Number(value) <= 20) {
+                  setMembers(String(value));
+                }
+              }}
               placeholder="Number of members"
               min="1"
+              max="20"
+              data-tutorial="members"
             />
           </div>
 
           {/* Date Selection with Increment/Decrement */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="relative">
+            <div className="relative" data-tutorial="start-date">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -481,6 +622,13 @@ You can mention some details below to help us design a better plan for you:
                     onSelect={(date) => {
                       setStartDate(date);
                       setIsDateUserInput(true);
+                    }}
+                    disabled={(date) => {
+                      // Disable dates after end date if end date is set
+                      if (endDate) {
+                        return date > endDate;
+                      }
+                      return false;
                     }}
                   />
                 </PopoverContent>
@@ -512,7 +660,7 @@ You can mention some details below to help us design a better plan for you:
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative" data-tutorial="end-date">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -534,6 +682,13 @@ You can mention some details below to help us design a better plan for you:
                     onSelect={(date) => {
                       setEndDate(date);
                       setIsDateUserInput(true);
+                    }}
+                    disabled={(date) => {
+                      // Disable dates before start date if start date is set
+                      if (startDate) {
+                        return date < startDate;
+                      }
+                      return false;
                     }}
                   />
                 </PopoverContent>
@@ -566,7 +721,7 @@ You can mention some details below to help us design a better plan for you:
           </div>
 
           {/* Day Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-tutorial="day-tabs">
             <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {localTripData.days.map((day) => (
                 <Button
@@ -613,11 +768,13 @@ You can mention some details below to help us design a better plan for you:
               size="sm"
               onClick={() => setViewMode("all")}
               className="shrink-0"
+              data-tutorial="view-all-days"
             >
               <Eye className="w-4 h-4 mr-1" />
               View All Days
             </Button>
           </div>
+        </div>
 
           {/* Action Buttons */}
           <div className="flex gap-2 flex-wrap">
@@ -625,12 +782,23 @@ You can mention some details below to help us design a better plan for you:
               variant="outline"
               size="sm"
               onClick={autoEstimateCosts}
+              data-tutorial="auto-estimate"
+              disabled={isEstimating}
             >
-              <Calculator className="w-4 h-4 mr-2" />
-              Auto-Estimate Costs{" "}
-              {viewMode === "all"
-                ? "(All Days)"
-                : "(Current Day)"}
+              {isEstimating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Estimating...
+                </>
+              ) : (
+                <>
+                  <Calculator className="w-4 h-4 mr-2" />
+                  Auto-Estimate Costs{" "}
+                  {viewMode === "all"
+                    ? "(All Days)"
+                    : "(Current Day)"}
+                </>
+              )}
             </Button>
 
             {viewMode === "single" && (
@@ -638,9 +806,20 @@ You can mention some details below to help us design a better plan for you:
                 variant="outline"
                 size="sm"
                 onClick={findOptimalRoute}
+                disabled={isOptimizing}
+                data-tutorial="optimize-route"
               >
-                <Waypoints className="w-4 h-4 mr-2" />
-                Find Optimal Route
+                {isOptimizing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Optimizing...
+                  </>
+                ) : (
+                  <>
+                    <Waypoints className="w-4 h-4 mr-2" />
+                    Find Optimal Route
+                  </>
+                )}
               </Button>
             )}
 
@@ -648,9 +827,14 @@ You can mention some details below to help us design a better plan for you:
               <Button
                 size="sm"
                 onClick={savePlan}
-                disabled={!hasUnsavedChanges}
+                disabled={!hasUnsavedChanges || isSaving}
               >
-                {hasUnsavedChanges ? (
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : hasUnsavedChanges ? (
                   <>
                     <Save className="w-4 h-4 mr-2" />
                     Save Plan
@@ -664,13 +848,11 @@ You can mention some details below to help us design a better plan for you:
               </Button>
             )}
           </div>
-        </div>
       </Card>
 
       {/* Main Content */}
-      <div
-        className={`grid gap-6 ${isMapExpanded ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}
-      >
+      <div className={`max-w-7xl mx-auto grid gap-6 ${isMapExpanded ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
+
         {/* Left: Day/Days View */}
         {!isMapExpanded && (
           <div className="space-y-4">
@@ -723,9 +905,12 @@ You can mention some details below to help us design a better plan for you:
             onRouteGuidance={handleRouteGuidance}
             isExpanded={isMapExpanded}
             userLocation={userLocation}
+            manualStepAction={manualStepAction}
+            onManualActionComplete={onManualActionComplete}
             onMapClick={data => {
               setPendingDestination(data);
             }}
+            resetMapView={resetToDefault}
           />
         </div>
       </div>

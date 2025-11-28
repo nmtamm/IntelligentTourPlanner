@@ -9,6 +9,7 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { loginUser, registerUser } from '../api.js';
 
@@ -18,14 +19,19 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
   const [username, setUsername] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage(null);
 
     if (isLoginMode) {
       // Login
       if (!username.trim() || !password.trim()) {
-        toast.error('Please enter username and password');
+        const msg = 'Please enter username and password';
+        setErrorMessage(msg);
+        toast.error(msg);
         return;
       }
 
@@ -47,16 +53,26 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
         setEmail('');
         setPassword('');
         setUsername('');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Login error:', error);
-        toast.error('Login failed. Please check your credentials.');
+
+        // If backend returns 401 for wrong credentials
+        if (error?.response?.status === 401) {
+          setErrorMessage('Wrong username or password.');
+          toast.error('Wrong username or password.');
+        } else {
+          setErrorMessage('Login failed. Please check your credentials.');
+          toast.error('Login failed. Please check your credentials.');
+        }
       } finally {
         setLoading(false);
       }
     } else {
       // Register
       if (!username.trim() || !email.trim() || !password.trim()) {
-        toast.error('Please fill in all fields');
+        const msg = 'Please fill in all fields';
+        setErrorMessage(msg);
+        toast.error(msg);
         return;
       }
 
@@ -70,12 +86,14 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
 
         toast.success('Registration successful! Please login.');
         setIsLoginMode(true);
-      } catch (error) {
-        const err = error as any;
-        console.error('Registration error:', err);
-        if (err.response?.status === 400) {
+        setErrorMessage(null);
+      } catch (error: any) {
+        console.error('Registration error:', error);
+        if (error.response?.status === 400) {
+          setErrorMessage('Username or email already exists');
           toast.error('Username or email already exists');
         } else {
+          setErrorMessage('Registration failed. Please try again.');
           toast.error('Registration failed. Please try again.');
         }
       } finally {
@@ -97,6 +115,13 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
               : "Create a new account to save and manage your trip plans"}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Error message UI */}
+        {errorMessage && (
+          <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -126,14 +151,28 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -154,7 +193,10 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setIsLoginMode(!isLoginMode)}
+              onClick={() => { 
+                setIsLoginMode(!isLoginMode);
+                setErrorMessage(null);
+              }}
               className="text-sm text-[#004DB6] hover:underline"
             >
               {isLoginMode

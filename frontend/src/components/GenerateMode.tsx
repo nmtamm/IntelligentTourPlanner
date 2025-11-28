@@ -222,13 +222,18 @@ function generateSampleDestinations(region: string, currency: 'USD' | 'VND'): De
       }
     ];
 
+    const lat = 48.8566 + (Math.random() - 0.5) * 0.1;
+    const lng = 2.3522 + (Math.random() - 0.5) * 0.1;
+
     return {
       id: String(idx + 1),
       name: `${region} ${place.name}`,
       address: `${region} City Center`,
       costs: costItems,
-      lat: 48.8566 + (Math.random() - 0.5) * 0.1,
-      lng: 2.3522 + (Math.random() - 0.5) * 0.1
+      lat: lat,
+      lng: lng,
+      latitude: lat,
+      longitude: lng
     };
   });
 }

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Plus, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Loader2 } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
 import { geocodeDestination } from '../utils/geocode';
+import { makeDestinationFromGeo } from "../utils/destinationFactory";
 
 interface DayViewProps {
   day: DayPlan;
@@ -23,6 +24,7 @@ interface DayViewProps {
 
 export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination }: DayViewProps) {
   const [newDestinationName, setNewDestinationName] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     if (pendingDestination) {
@@ -38,6 +40,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       return;
     }
 
+    setIsAdding(true);
+
     let geo;
     if (pendingDestination) {
       geo = {
@@ -50,14 +54,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       geo = await geocodeDestination(newDestinationName);
     }
 
-    const destination: Destination = {
-      id: Date.now().toString(),
-      name: geo.address || newDestinationName,
-      address: '',
-      costs: [{ id: `${Date.now()}-1`, amount: 0, detail: '' }],
-      latitude: geo.lat,
-      longitude: geo.lng
-    };
+    if (!geo) {
+      toast.error("Could not find this location. Please try another name.");
+      return;
+    }
+
+    const destination = makeDestinationFromGeo(geo, newDestinationName);
 
     onUpdate({
       ...day,
@@ -68,6 +70,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     setNewDestinationName('');
     setPendingDestination(null);
     toast.success('Destination added!');
+    setIsAdding(false);
   };
 
   const removeDestination = (id: string) => {
@@ -131,12 +134,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   const currencySymbol = currency === 'USD' ? '$' : '₫';
 
   return (
-    <Card className="p-6">
+    <Card className="p-6"  data-tutorial-card="destinations">
       <div className="space-y-4">
         <h2 className="text-[#004DB6]">Day {day.dayNumber}</h2>
 
         {/* Add Destination */}
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-tutorial="add-destination">
           <Input
             placeholder="Enter destination name (or click on map)"
             value={newDestinationName}
@@ -144,8 +147,17 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
             onKeyPress={(e) => e.key === 'Enter' && addDestination()}
           />
           <Button onClick={addDestination}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add
+            {isAdding ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add
+              </>
+            )}
           </Button>
         </div>
 
@@ -228,6 +240,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                     size="sm"
                     onClick={() => addCostItem(destination.id)}
                     className="w-full"
+                    data-tutorial="add-cost-item"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Cost Item

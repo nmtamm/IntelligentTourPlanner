@@ -7,6 +7,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvent, Polyline }
 import 'leaflet/dist/leaflet.css';
 import polyline from '@mapbox/polyline';
 import { reverseGeocode } from "../utils/reverseGeocode";
+import { toast } from "sonner";
 
 interface MapViewProps {
   days: DayPlan[];
@@ -14,6 +15,9 @@ interface MapViewProps {
   selectedDayId: string;
   onRouteGuidance: (day: DayPlan) => void;
   onMapClick?: (data: { lat: number; lon: number; name: string; address: string }) => void;
+  manualStepAction?: string | null;
+  onManualActionComplete?: () => void;
+  resetMapView?: boolean;
 }
 
 function FitBounds({ bounds }) {
@@ -42,17 +46,30 @@ export function MapView({
   onRouteGuidance,
   isExpanded,
   userLocation,
-  onMapClick
+  onMapClick,
+  manualStepAction,
+  onManualActionComplete,
+  resetMapView,
 }: MapViewProps & { isExpanded?: boolean; userLocation?: { lat: number; lng: number } | null }) {
 
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
-  const [mapListView, setMapListView] = useState<"map" | "list">("map");
-  const [selectedPairIndex, setSelectedPairIndex] = useState<number | null>(null);
 
   const currentDay = days.find((d) => d.id === selectedDayId);
   const hasOptimizedRoute = viewMode === "single" && currentDay && currentDay.optimizedRoute.length > 0;
+  
+  const [mapListView, setMapListView] = useState<"map" | "list">(hasOptimizedRoute ? "list" : "map");
+  const [selectedPairIndex, setSelectedPairIndex] = useState<number | null>(null);
 
   const mapRef = useRef<any>(null);
+
+  // Reset to map view when resetMapView is triggered
+  useEffect(() => {
+    if (resetMapView) {
+      setMapListView("map");
+      setSelectedDestination(null);
+      setSelectedPairIndex(null);
+    }
+  }, [resetMapView]);
 
   // Determine destinations to display based on view mode
   const getDestinations = () => {
@@ -108,8 +125,50 @@ export function MapView({
     }
   }, [isExpanded]);
 
+  // Handle manual step actions from User Manual
+  useEffect(() => {
+    if (!manualStepAction || !onManualActionComplete) return;
+
+    const handleAction = async () => {
+      switch (manualStepAction) {
+        case 'map-view': {
+          // Switch to Route List view
+          if (hasOptimizedRoute) {
+            setMapListView('list');
+            setSelectedPairIndex(0);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            toast.success('Switched to Route List view!');
+          } else {
+            toast.info('Optimize a route first to see the Route List');
+          }
+          break;
+        }
+
+        case 'route-list': {
+          // Choose the first route
+          if (currentDay && currentDay.optimizedRoute.length > 0) {
+            onRouteGuidance(currentDay)
+            toast.success('Choose the first route!');
+          } else {
+            toast.info('No routes available');
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      // Clear the action
+      onManualActionComplete();
+    };
+
+    handleAction();
+  }, [manualStepAction, onManualActionComplete, hasOptimizedRoute, currentDay, onRouteGuidance]);
+
+
   return (
-    <Card className="p-6 sticky top-6">
+    <Card className="p-6 sticky top-6" data-tutorial-card="map">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Button
@@ -120,6 +179,7 @@ export function MapView({
               )
             }
             className="text-gray-900 hover:bg-accent px-2 py-1 h-auto font-semibold text-[16px]"
+            data-tutorial="map-view"
           >
             {mapListView === "map" ? (
               <>
@@ -138,7 +198,7 @@ export function MapView({
         {/* List View */}
         {mapListView === "list" && hasOptimizedRoute && (
           <div className="space-y-3">
-            <div className="bg-[#DAF9D8] rounded-lg p-4">
+            <div className="bg-[#DAF9D8] rounded-lg p-4 max-h-[600px] overflow-y-auto">
               <p className="text-sm text-[#004DB6] mb-3">
                 Click on a route segment to navigate:
               </p>
@@ -171,8 +231,9 @@ export function MapView({
                         <Button
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
                           onClick={() => onRouteGuidance(currentDay)}
+                          data-tutorial="route-list"
                         >
-                          <Navigation className="w-4 h-4 mr-2" />
+                          <Navigation className="w-4 h-4 mr-2"/>
                           Go - Start Navigation
                         </Button>
                       )}
@@ -241,47 +302,6 @@ export function MapView({
                 </MapContainer>
               </div>
 
-
-              {/* Selected Destination Details */}
-              {selectedDestination && (
-                <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-lg p-4 border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-gray-900">
-                        {selectedDestination.name}
-                      </h4>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {selectedDestination.address}
-                      </p>
-                      <div className="mt-2 space-y-1">
-                        {selectedDestination.costs.map(
-                          (cost) => (
-                            <div
-                              key={cost.id}
-                              className="text-sm text-gray-600"
-                            >
-                              {cost.detail &&
-                                `${cost.detail}: `}
-                              <span className="text-gray-900">
-                                ${cost.amount}
-                              </span>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setSelectedDestination(null)
-                      }
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Map Info */}
