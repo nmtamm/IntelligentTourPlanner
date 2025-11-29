@@ -1,6 +1,6 @@
 export interface CostItem {
   id: string;
-  amount: number;
+  amount: string;
   detail: string;
 }
 

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { DayPlan } from "./types";
 import { checkGPS, sendLocationToBackend } from "./utils/geolocation";
+import { fetchFoursquarePlaces } from "./utils/foursquare";
 
 type Currency = "USD" | "VND";
 type Language = "EN" | "VI";

@@ -19,9 +19,10 @@ interface DayViewProps {
     address: string;
   } | null;
   setPendingDestination: (dest: any) => void;
+  generatedPlaces?: any[];
 }
 
-export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination }: DayViewProps) {
+export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination, generatedPlaces }: DayViewProps) {
   const [newDestinationName, setNewDestinationName] = useState('');
 
   useEffect(() => {
@@ -31,6 +32,50 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       // setPendingDestination(null);
     }
   }, [pendingDestination, setPendingDestination]);
+
+  useEffect(() => {
+    if (generatedPlaces && generatedPlaces.length > 0) {
+      let detectedCurrency = currency;
+      const newDestinations = generatedPlaces.map((place, idx) => {
+        let price = place.price;
+        let symbol = "";
+        if (typeof price === "string") {
+          // Extract first non-space character (currency symbol)
+          symbol = price.trim().charAt(0);
+          if (symbol === "₫" && currency !== "VND") {
+            detectedCurrency = "VND";
+          } else if (symbol === "$" && currency !== "USD") {
+            detectedCurrency = "USD";
+          }
+          // Remove leading currency symbols and spaces
+          price = price.replace(/^[^\d\-]+/, '').trim();
+        }
+        return {
+          id: `${Date.now()}-${idx}`,
+          name: place.title + ", " + (place.address || ""),
+          address: place.address || "",
+          costs: [{ id: `${Date.now()}-${idx}`, amount: price, detail: "" }],
+          latitude: place.gps_coordinates.latitude,
+          longitude: place.gps_coordinates.longitude,
+          lat: place.gps_coordinates.latitude,
+          lng: place.gps_coordinates.longitude,
+        };
+      });
+
+      // If currency changed, notify parent
+      if (detectedCurrency !== currency) {
+        onCurrencyToggle();
+      }
+
+      onUpdate({
+        ...day,
+        destinations: [...day.destinations, ...newDestinations],
+        optimizedRoute: [],
+      });
+      toast.success("Generated places added!");
+    }
+    // eslint-disable-next-line
+  }, [generatedPlaces]);
 
   const addDestination = async () => {
     if (!newDestinationName.trim()) {
@@ -54,7 +99,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       id: Date.now().toString(),
       name: geo.address || newDestinationName,
       address: '',
-      costs: [{ id: `${Date.now()}-1`, amount: 0, detail: '' }],
+      costs: [{ id: `${Date.now()}-1`, amount: "", detail: '' }],
       latitude: geo.lat,
       longitude: geo.lng
     };
@@ -92,7 +137,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
     const newCost: CostItem = {
       id: `${Date.now()}-${destination.costs.length}`,
-      amount: 0,
+      amount: "",
       detail: ''
     };
 
@@ -122,12 +167,38 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     });
   };
 
-  const calculateDayTotal = () => {
-    return day.destinations.reduce((total, dest) => {
-      return total + dest.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-    }, 0);
-  };
+  function parseAmount(amount: string | number) {
+    if (typeof amount === "number") {
+      return { min: amount, max: amount, isApprox: false };
+    }
+    if (!amount) return { min: 0, max: 0, isApprox: false };
+    const cleaned = amount.replace(/[^\d\-–\.]/g, '').trim();
+    const dashRegex = /[-–]/;
+    if (dashRegex.test(cleaned)) {
+      const [a, b] = cleaned.split(dashRegex).map(s => parseFloat(s));
+      if (!isNaN(a) && !isNaN(b)) return { min: a, max: b, isApprox: true };
+      if (!isNaN(a)) return { min: a, max: a, isApprox: true };
+      if (!isNaN(b)) return { min: b, max: b, isApprox: true };
+      return { min: 0, max: 0, isApprox: false };
+    }
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? { min: 0, max: 0, isApprox: false } : { min: num, max: num, isApprox: false };
+  }
 
+  function calculateDayTotal() {
+    let minTotal = 0, maxTotal = 0, isApprox = false;
+    day.destinations.forEach(dest => {
+      dest.costs.forEach(cost => {
+        const parsed = parseAmount(cost.amount);
+        minTotal += parsed.min;
+        maxTotal += parsed.max;
+        if (parsed.isApprox) isApprox = true;
+      });
+    });
+    return { minTotal, maxTotal, isApprox };
+  }
+
+  const dayTotal = calculateDayTotal();
   const currencySymbol = currency === 'USD' ? '$' : '₫';
 
   return (
@@ -157,7 +228,10 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
             </p>
           ) : (
             day.destinations.map((destination) => {
-              const totalCost = destination.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
+              const parsedCosts = destination.costs.map(cost => parseAmount(cost.amount));
+              const minTotal = parsedCosts.reduce((sum, c) => sum + c.min, 0);
+              const maxTotal = parsedCosts.reduce((sum, c) => sum + c.max, 0);
+              const isApprox = parsedCosts.some(c => c.isApprox);
 
               return (
                 <div
@@ -193,10 +267,10 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                               {currencySymbol}
                             </button>
                             <Input
-                              type="number"
+                              type="string"
                               value={cost.amount || ''}
                               onChange={(e) => updateCostItem(destination.id, cost.id, {
-                                amount: parseFloat(e.target.value) || 0
+                                amount: e.target.value
                               })}
                               placeholder="0"
                               className="pl-12"
@@ -237,7 +311,10 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                   <div className="pt-2 border-t flex items-center justify-between text-sm">
                     <span className="text-gray-600">Destination Total:</span>
                     <span className="text-gray-900">
-                      {currencySymbol}{totalCost.toLocaleString()}
+                      {currencySymbol}
+                      {isApprox
+                        ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
+                        : minTotal.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -251,8 +328,13 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
           <div className="pt-4 border-t">
             <div className="flex items-center justify-between bg-[#DAF9D8] rounded-lg p-4">
               <span className="text-[#004DB6]">Day {day.dayNumber} Total:</span>
+
               <span className="text-[#004DB6]">
-                {currencySymbol}{calculateDayTotal().toLocaleString()}
+
+                {currencySymbol}
+                {dayTotal.isApprox
+                  ? `${dayTotal.minTotal.toLocaleString()} - ${dayTotal.maxTotal.toLocaleString()}`
+                  : dayTotal.minTotal.toLocaleString()}
               </span>
             </div>
           </div>

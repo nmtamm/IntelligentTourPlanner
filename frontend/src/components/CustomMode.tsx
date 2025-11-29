@@ -35,6 +35,7 @@ import { createTrip, updateTrip } from '../api.js';
 import { getOptimizedRoute } from "../utils/geocode";
 import { fetchItinerary } from "../utils/gemini";
 import { data } from "react-router-dom";
+import { generatePlaces } from "../utils/serp";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -73,7 +74,7 @@ export function CustomMode({
   const [endDate, setEndDate] = useState<Date>();
   const [isDateUserInput, setIsDateUserInput] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
-
+  const [allPlaces, setAllPlaces] = useState<any[]>([]);
   const [pendingDestination, setPendingDestination] = useState<{
     name: string;
     lat: number;
@@ -422,6 +423,13 @@ You can mention some details below to help us design a better plan for you:
                   // Send the whole preferences text as 'paragraph'
                   const result = await fetchItinerary({ paragraph: preferences });
                   console.log("Itinerary from backend:", result);
+
+                  if (userLocation && Array.isArray(result.categories)) {
+                    const allPlaces = await generatePlaces(result, userLocation);
+                    console.log("Fetched places:", allPlaces);
+                    setAllPlaces(allPlaces);
+                  }
+
                 } catch (err) {
                   console.error("Failed to fetch itinerary:", err);
                   toast.error("Failed to generate trip plan.");
@@ -684,6 +692,7 @@ You can mention some details below to help us design a better plan for you:
                 onCurrencyToggle={onCurrencyToggle}
                 pendingDestination={pendingDestination}
                 setPendingDestination={setPendingDestination}
+                generatedPlaces={allPlaces}
               />
             ) : (
               <AllDaysView

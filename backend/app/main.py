@@ -15,6 +15,7 @@ from .routers import location
 from .routers import osrm_router
 from .routers import gemini
 from .routers import foursquare_router
+from .routers import serp_router
 
 app = FastAPI(debug=True)
 
@@ -39,6 +40,7 @@ app.include_router(location.router)
 app.include_router(osrm_router.router)
 app.include_router(gemini.router)
 app.include_router(foursquare_router.router)
+app.include_router(serp_router.router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
