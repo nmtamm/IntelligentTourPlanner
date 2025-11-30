@@ -7,6 +7,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvent, Polyline }
 import 'leaflet/dist/leaflet.css';
 import polyline from '@mapbox/polyline';
 import { reverseGeocode } from "../utils/reverseGeocode";
+import { parseAmount } from "../utils/parseAmount";
 
 interface MapViewProps {
   days: DayPlan[];
@@ -254,20 +255,19 @@ export function MapView({
                         {selectedDestination.address}
                       </p>
                       <div className="mt-2 space-y-1">
-                        {selectedDestination.costs.map(
-                          (cost) => (
-                            <div
-                              key={cost.id}
-                              className="text-sm text-gray-600"
-                            >
-                              {cost.detail &&
-                                `${cost.detail}: `}
+                        {selectedDestination.costs.map((cost) => {
+                          const parsed = parseAmount(cost.amount);
+                          return (
+                            <div key={cost.id} className="text-sm text-gray-600">
+                              {cost.detail && `${cost.detail}: `}
                               <span className="text-gray-900">
-                                ${cost.amount}
+                                {parsed.isApprox
+                                  ? `$${parsed.min.toLocaleString()} - $${parsed.max.toLocaleString()}`
+                                  : `$${parsed.min.toLocaleString()}`}
                               </span>
                             </div>
-                          ),
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
                     <Button

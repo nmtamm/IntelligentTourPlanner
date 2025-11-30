@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { DayPlan, Destination } from '../types';
 import { getTrips, deleteTrip } from '../api.js';
 import { convertAllTrips } from '../utils/exchangerate';
+import { parseAmount } from '../utils/parseAmount';
 
 interface SavedPlansProps {
   currentUser: string;
@@ -126,11 +127,17 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {plans.map((plan) => {
             const totalDestinations = plan.days.reduce((sum: number, day: DayPlan) => sum + day.destinations.length, 0);
-            const totalCost = plan.days.reduce((sum: number, day: DayPlan) =>
-              sum + day.destinations.reduce((daySum: number, dest: Destination) =>
-                daySum + dest.costs.reduce((costSum: number, cost: any) => costSum + (cost.amount || 0), 0)
-                , 0)
-              , 0);
+            let minTotal = 0, maxTotal = 0, isApprox = false;
+            plan.days.forEach((day: DayPlan) => {
+              day.destinations.forEach((dest: Destination) => {
+                dest.costs.forEach((cost: any) => {
+                  const parsed = parseAmount(cost.amount);
+                  minTotal += parsed.min;
+                  maxTotal += parsed.max;
+                  if (parsed.isApprox) isApprox = true;
+                });
+              });
+            });
 
             return (
               <Card
@@ -163,7 +170,11 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Wallet className="w-4 h-4" />
-                    {currencySymbol}{totalCost.toFixed(2)} total
+                    {currencySymbol}
+                    {isApprox
+                      ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
+                      : minTotal.toLocaleString()
+                    } total
                   </div>
                 </div>
 

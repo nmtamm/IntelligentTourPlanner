@@ -1,8 +1,8 @@
 export interface CostItem {
   id: string;
-  amount: number; // for display purpose
+  amount: string;
   detail: string;
-  originalAmount: number; // always store the initial input
+  originalAmount: string; // always store the initial input
   originalCurrency: 'USD' | 'VND'; // always store the initial currency
 }
 

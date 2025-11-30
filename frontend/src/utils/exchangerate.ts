@@ -1,3 +1,5 @@
+import { parseAmount } from "./parseAmount";
+
 export async function convertCurrency(amount: number, source: string, target: string) {
     const res = await fetch(
         `http://localhost:8000/api/exchangerate?amount=${amount}&source=${source}&target=${target}`
@@ -15,14 +17,25 @@ export async function convertAllDays(days, currency) {
             costs: await Promise.all(dest.costs.map(async (cost) => {
                 const sourceCurrency = cost.originalCurrency || currency;
                 if (sourceCurrency !== currency) {
-                    const convertedAmount = await convertCurrency(
-                        cost.originalAmount || 0,
+                    const parsed = parseAmount(cost.originalAmount || "0");
+                    // Convert both min and max if it's a range
+                    const convertedMin = await convertCurrency(
+                        parsed.min,
                         sourceCurrency.toLowerCase(),
                         currency.toLowerCase()
                     );
+                    const convertedMax = await convertCurrency(
+                        parsed.max,
+                        sourceCurrency.toLowerCase(),
+                        currency.toLowerCase()
+                    );
+                    // If it's an approximate/range, return as "min-max"
+                    const convertedAmount = parsed.isApprox
+                        ? `${convertedMin}-${convertedMax}`
+                        : String(convertedMin);
                     return { ...cost, amount: convertedAmount };
                 } else {
-                    return { ...cost, amount: cost.originalAmount };
+                    return { ...cost, amount: String(cost.originalAmount) };
                 }
             }))
         })))

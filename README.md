@@ -8,15 +8,21 @@ cd backend
 docker build -t myapp .
 ```
 
-## Run to save database through devices:
+## Run with a container name:
 ```
-docker run --rm -it -p 8000:8000 -v path-to-your-root-directory\backend:/app myapp
+docker run --rm -it --name mycontainer -p 8000:8000 -v path-to-your-root-folder\backend:/app myapp
 ```
 
-## Run with API Key of Gemini:
-Send me an email or sth like that to get the real key for testing purpose:
+## Copy an environment file to docker image:
+Create an ```.env``` file whose path is path-to-your-root-folder\backend\.env path to store the API key following this format:
 ```
-docker run --rm -it -p 8000:8000 -v path-to-your-root-directory\backend:/app -e GEMINI_API_KEY=real_key myapp
+SERP_API_KEY=real_key
+GEMINI_API_KEY=real_key
+FOURSQUARE_API_KEY=real_key
+```
+Then run this command to copy that file to your docker image:
+```
+docker cp path-to-your-root-folder\backend\.env mycontainer:/app/.env     
 ```
 
 # For frontend

@@ -36,6 +36,7 @@ import { getOptimizedRoute } from "../utils/geocode";
 import { fetchItinerary } from "../utils/gemini";
 import { data } from "react-router-dom";
 import { convertCurrency, convertAllDays } from "../utils/exchangerate";
+import { generatePlaces } from "../utils/serp";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -77,6 +78,7 @@ export function CustomMode({
 
   const [convertedDays, setConvertedDays] = useState(localTripData.days);
 
+  const [allPlaces, setAllPlaces] = useState<any[]>([]);
   const [pendingDestination, setPendingDestination] = useState<{
     name: string;
     lat: number;
@@ -236,9 +238,14 @@ export function CustomMode({
           ...dest,
           costs: dest.costs.map((cost) => ({
             ...cost,
-            amount: cost.amount || Math.floor((Math.random() * 30 + 10) * multiplier),
-            originalAmount: cost.amount || 0.0,
-            originalCurrency: currency
+            amount: typeof cost.amount === "string"
+              ? cost.amount
+              : String(Math.floor((Math.random() * 30 + 10) * multiplier)),
+            originalAmount: typeof cost.amount === "string"
+              ? cost.amount
+              : String(Math.floor((Math.random() * 30 + 10) * multiplier)),
+            originalCurrency: currency,
+            detail: cost.detail || "",
           })),
         })),
       };
@@ -252,9 +259,14 @@ export function CustomMode({
           ...dest,
           costs: dest.costs.map((cost) => ({
             ...cost,
-            amount: cost.amount || Math.floor((Math.random() * 30 + 10) * multiplier),
-            originalAmount: cost.amount || 0.0,
-            originalCurrency: currency
+            amount: typeof cost.amount === "string"
+              ? cost.amount
+              : String(cost.amount), // always string
+            originalAmount: typeof cost.originalAmount === "string"
+              ? cost.originalAmount
+              : String(cost.originalAmount), // always string
+            originalCurrency: cost.originalCurrency || currency,
+            detail: cost.detail || "",
           })),
         })),
       }));
@@ -335,11 +347,10 @@ export function CustomMode({
           longitude: dest.lng || dest.longitude || null,
           order: index,
           costs: dest.costs.map(cost => ({
-            amount: typeof cost.amount === "string" ? parseFloat(cost.amount) : cost.amount || 0.0,
-            originalAmount: cost.originalAmount || 0.0,
+            amount: typeof cost.amount === "string" ? cost.amount : String(cost.amount),
+            originalAmount: typeof cost.originalAmount === "string" ? cost.originalAmount : String(cost.originalAmount),
             originalCurrency: cost.originalCurrency || currency,
             detail: cost.detail || ''
-
           }))
         }))
       }))
@@ -433,6 +444,13 @@ You can mention some details below to help us design a better plan for you:
                   // Send the whole preferences text as 'paragraph'
                   const result = await fetchItinerary({ paragraph: preferences });
                   console.log("Itinerary from backend:", result);
+
+                  if (userLocation && Array.isArray(result.categories)) {
+                    const allPlaces = await generatePlaces(result, userLocation);
+                    console.log("Fetched places:", allPlaces);
+                    setAllPlaces(allPlaces);
+                  }
+
                 } catch (err) {
                   console.error("Failed to fetch itinerary:", err);
                   toast.error("Failed to generate trip plan.");
@@ -695,10 +713,11 @@ You can mention some details below to help us design a better plan for you:
                 onCurrencyToggle={onCurrencyToggle}
                 pendingDestination={pendingDestination}
                 setPendingDestination={setPendingDestination}
+                generatedPlaces={allPlaces}
               />
             ) : (
               <AllDaysView
-                days={localTripData.days}
+                days={convertedDays}
                 onUpdate={(updatedDays) =>
                   handleTripDataChange({
                     ...localTripData,
