@@ -55,9 +55,9 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Route Info */}
-        <Card className="p-6">
+        <Card className="p-6"  data-tutorial="route-guidance">
           <div className="space-y-6">
             <h2 className="text-[#004DB6] flex items-center gap-2">
               <Navigation className="w-6 h-6" />
@@ -78,7 +78,7 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
               </div>
 
               <div className="flex items-center justify-center">
-                <div className="border-l-2 border-dashed border-gray-300 h-8"></div>
+                <div className="border-l-2 border-dashed border-gray-300 h-5"></div>
               </div>
 
               <div className="bg-red-50 rounded-lg p-4">
@@ -93,28 +93,29 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
               </div>
             </div>
 
-            {/* Stats */}
+            {/* Status */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
                   <Route className="w-4 h-4" />
-                  <span className="text-sm">Distance</span>
+                  <span className="text-sm">Distance:</span>
+                  <p className="text-[#004DB6]">{distance.toFixed(2)} km</p>
                 </div>
-                <p className="text-[#004DB6]">{distance.toFixed(2)} km</p>
+                
               </div>
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
                   <Clock className="w-4 h-4" />
-                  <span className="text-sm">Est. Time</span>
+                  <span className="text-sm">Est. Time: </span>
+                  <p className="text-[#004DB6]">{Math.ceil(estimatedTime)} min</p>
                 </div>
-                <p className="text-[#004DB6]">{Math.ceil(estimatedTime)} min</p>
               </div>
             </div>
 
             {/* Directions */}
             <div className="space-y-3">
               <h3 className="text-gray-900">Turn-by-turn Directions</h3>
-              <div className="space-y-2">
+              <div className="space-y-2  max-h-[400px] overflow-y-auto">
                 {instructions.length > 0 ? (
                   instructions.map((leg, legIdx) => (
                     <div key={legIdx} className="mb-4">
@@ -143,11 +144,11 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
         </Card>
 
         {/* GPS Map Visualization */}
-        <Card className="p-6">
-          <div className="space-y-4">
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex flex-col h-full space-y-4">
             <h3 className="text-gray-900">GPS Navigation</h3>
 
-            <div className="bg-gray-50 rounded-lg overflow-hidden border h-[600px] relative">
+            <div className="bg-gray-50 rounded-lg overflow-hidden border flex-1 relative">
               <MapContainer
                 center={[fromLat, fromLng]}
                 zoom={13}
@@ -182,19 +183,8 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
                   />
                 )}
               </MapContainer>
-
-              {/* GPS Info Overlay */}
-              <div className="absolute top-4 left-4 right-4 bg-white rounded-lg shadow-lg p-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-blue-600" />
-                  <span className="text-gray-600">Following route...</span>
-                </div>
-              </div>
             </div>
 
-            <p className="text-sm text-gray-500 text-center">
-              GPS navigation simulation
-            </p>
           </div>
         </Card>
       </div>

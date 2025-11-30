@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { GpsGate } from "./components/GpsGate";
 import { CustomMode } from "./components/CustomMode";
 import { AuthModal } from "./components/AuthModal";
 import { SavedPlans } from "./components/SavedPlans";
+import { UserManual } from "./components/UserManual";
 import { Button } from "./components/ui/button";
 import {
   LogIn,
@@ -9,6 +11,7 @@ import {
   Map,
   Globe,
   MapPinPen,
+  HelpCircle
 } from "lucide-react";
 import { DayPlan } from "./types";
 import { checkGPS, sendLocationToBackend } from "./utils/geolocation";
@@ -34,21 +37,26 @@ export default function App() {
     string | null
   >(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isUserManualOpen, setIsUserManualOpen] = useState(false);
+  const [manualStepAction, setManualStepAction] = useState<string | null>(null);
+  const [resetViewsToDefault, setResetViewsToDefault] = useState(false);
+  const [showAllDaysOnLoad, setShowAllDaysOnLoad] = useState(false);
 
-  useEffect(() => {
-    checkGPS((gps) => {
-      if (gps) {
-        setUserLocation({ lat: gps.latitude, lng: gps.longitude });
-        sendLocationToBackend(gpsApiUrl, (data, error) => {
-          if (error) {
-            console.error("Failed to send GPS:", error);
-          } else {
-            console.log("Location sent to backend:", data);
-          }
-        });
-      }
-    });
-  }, []);
+  // => I put this in GpsGate.tsx now
+  // useEffect(() => {
+  //   checkGPS((gps) => {
+  //     if (gps) {
+  //       setUserLocation({ lat: gps.latitude, lng: gps.longitude });
+  //       sendLocationToBackend(gpsApiUrl, (data, error) => {
+  //         if (error) {
+  //           console.error("Failed to send GPS:", error);
+  //         } else {
+  //           console.log("Location sent to backend:", data);
+  //         }
+  //       });
+  //     }
+  //   });
+  // }, []);
 
   const handleLogin = (email: string) => {
     setIsLoggedIn(true);
@@ -70,6 +78,14 @@ export default function App() {
     setTripData({ name: plan.name, days: plan.days });
     setCurrentPlanId(plan.id);
     setShowSavedPlans(false);
+
+    // Trigger View All Days mode when a plan is loaded
+    setShowAllDaysOnLoad(true);
+
+    // Reset the trigger after a brief moment
+    setTimeout(() => {
+      setShowAllDaysOnLoad(false);
+    }, 100);
   };
 
   const handleCreateNewPlan = () => {
@@ -88,129 +104,192 @@ export default function App() {
     setShowSavedPlans(false);
   };
 
+  const handleOpenUserManual = () => {
+    // Navigate back to Custom Mode view (default screen)
+    // Keep all user data intact - don't clear anything
+    setShowSavedPlans(false);
+
+    // Trigger reset to default views in CustomMode
+    setResetViewsToDefault(true);
+
+    // Open the User Manual
+    setIsUserManualOpen(true);
+
+    // Reset the trigger after a brief moment
+    setTimeout(() => {
+      setResetViewsToDefault(false);
+    }, 100);
+  };
+
+  const handleCloseUserManual = () => {
+    // Navigate back to Custom Mode view (default screen)
+    // Keep all user data intact - don't clear anything
+    setShowSavedPlans(false);
+
+    // Trigger reset to default views in CustomMode
+    setResetViewsToDefault(true);
+
+    // Close the User Manual
+    setIsUserManualOpen(false);
+
+    // Reset the trigger after a brief moment
+    setTimeout(() => {
+      setResetViewsToDefault(false);
+    }, 100);
+  };
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-green-100 to-blue-300">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <MapPinPen className="w-8 h-8 text-[#004DB6]" />
-              <h1 className="text-[#004DB6] font-bold font-[Lora] text-[32px]">
-                Intelligent Tour Planner
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Currency Switcher */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setCurrency(
-                    currency === "USD" ? "VND" : "USD",
-                  )
-                }
-              >
-                {currency === "USD" ? "$ USD" : "₫ VND"}
-              </Button>
-
-              {/* Language Switcher */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setLanguage(language === "EN" ? "VI" : "EN")
-                }
-              >
-                <Globe className="w-4 h-4 mr-2" />
-                {language === "EN" ? "English" : "Tiếng Việt"}
-              </Button>
-
-              {isLoggedIn ? (
-                <>
-                  <span className="text-gray-600 text-sm">
-                    {currentUser}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setShowSavedPlans(!showSavedPlans)
-                    }
-                  >
-                    {showSavedPlans
-                      ? "Custom Mode"
-                      : "My Plans"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </Button>
-                </>
-              ) : (
+    <GpsGate gpsApiUrl={gpsApiUrl} onLocation={setUserLocation}>
+      <div className="min-h-screen bg-linear-to-br from-green-100 to-blue-300">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <MapPinPen className="w-8 h-8 text-[#004DB6]" />
+                <h1 className="text-[#004DB6] font-bold font-[Lora] text-[32px]">
+                  Intelligent Tour Planner
+                </h1>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Currency Switcher */}
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="sm"
-                  onClick={() => setIsAuthModalOpen(true)}
+                  onClick={() =>
+                    setCurrency(
+                      currency === "USD" ? "VND" : "USD",
+                    )
+                  }
+                  data-tutorial="currency"
                 >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Login
+                  {currency === "USD" ? "$ USD" : "₫ VND"}
                 </Button>
-              )}
+
+                {/* Language Switcher */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setLanguage(language === "EN" ? "VI" : "EN")
+                  }
+                  data-tutorial="language"
+                >
+                  <Globe className="w-4 h-4 mr-2" />
+                  {language === "EN" ? "English" : "Tiếng Việt"}
+                </Button>
+
+                {/* User Manual Button - Always Visible */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenUserManual}
+                  className="border-[#70C573] text-[#004DB6] hover:bg-[#DAF9D8]"
+                >
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  User Manual
+                </Button>
+
+                {isLoggedIn ? (
+                  <>
+                    <span className="text-gray-600 text-sm">
+                      {currentUser}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setShowSavedPlans(!showSavedPlans)
+                      }
+                    >
+                      {showSavedPlans
+                        ? "Custom Mode"
+                        : "My Plans"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setIsAuthModalOpen(true)}
+                      data-tutorial="login"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Login
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {showSavedPlans && isLoggedIn ? (
-          <SavedPlans
-            currentUser={currentUser!}
-            onBack={() => setShowSavedPlans(false)}
-            onLoadPlan={handleLoadPlan}
-            onCreateNew={handleCreateNewPlan}
-            currency={currency}
-          />
-        ) : (
-          <CustomMode
-            tripData={
-              tripData || {
-                name: "",
-                days: [
-                  {
-                    id: "1",
-                    dayNumber: 1,
-                    destinations: [],
-                    optimizedRoute: [],
-                  },
-                ],
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {showSavedPlans && isLoggedIn ? (
+            <SavedPlans
+              currentUser={currentUser!}
+              onBack={() => setShowSavedPlans(false)}
+              onLoadPlan={handleLoadPlan}
+              onCreateNew={handleCreateNewPlan}
+              currency={currency}
+            />
+          ) : (
+            <CustomMode
+              tripData={
+                tripData || {
+                  name: "",
+                  days: [
+                    {
+                      id: "1",
+                      dayNumber: 1,
+                      destinations: [],
+                      optimizedRoute: [],
+                    },
+                  ],
+                }
               }
-            }
-            onUpdate={setTripData}
-            currency={currency}
-            onCurrencyToggle={() =>
-              setCurrency(currency === "USD" ? "VND" : "USD")
-            }
-            language={language}
-            isLoggedIn={isLoggedIn}
-            currentUser={currentUser}
-            planId={currentPlanId}
-            userLocation={userLocation}
-          />
-        )}
-      </main>
+              onUpdate={setTripData}
+              currency={currency}
+              onCurrencyToggle={() =>
+                setCurrency(currency === "USD" ? "VND" : "USD")
+              }
+              language={language}
+              isLoggedIn={isLoggedIn}
+              currentUser={currentUser}
+              planId={currentPlanId}
+              userLocation={userLocation}
+              manualStepAction={manualStepAction}
+              onManualActionComplete={() => setManualStepAction(null)}
+              resetToDefault={resetViewsToDefault}
+              showAllDaysOnLoad={showAllDaysOnLoad}
+            />
+          )}
+        </main>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLogin={handleLogin}
-      />
-    </div>
+        {/* Auth Modal */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onLogin={handleLogin}
+        />
+
+        {/* User Manual */}
+        <UserManual
+          isOpen={isUserManualOpen}
+          onClose={handleCloseUserManual}
+          onAutoAction={(stepId) => setManualStepAction(stepId)}
+        />
+      </div>
+    </GpsGate>
   );
 }
