@@ -26,5 +26,6 @@ export interface DayPlan {
   routeDurationMin?: number;
   routeGeometry?: string;
   routeInstructions?: string[][];
+  routeSegmentGeometries?: string[];
 }
 

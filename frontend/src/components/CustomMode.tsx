@@ -89,6 +89,7 @@ export function CustomMode({
   const [isEstimating, setIsEstimating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [routeSegmentIndex, setRouteSegmentIndex] = useState<number | null>(null);
 
   const [convertedDays, setConvertedDays] = useState(localTripData.days);
 
@@ -385,11 +386,21 @@ export function CustomMode({
     setIsOptimizing(true);
 
     // Convert to backend format
-    const backendDestinations = day.destinations.map(d => ({
-      lat: d.latitude ?? d.lat,
-      lon: d.longitude ?? d.lng,
-      name: d.name,
-    }));
+    const backendDestinations = [
+      userLocation
+        ? {
+          lat: userLocation.lat,
+          lon: userLocation.lng,
+          name: "User Location",
+        }
+        : null,
+      ...day.destinations.map(d => ({
+        lat: d.latitude ?? d.lat,
+        lon: d.longitude ?? d.lng,
+        name: d.name,
+      })),
+    ].filter(Boolean) as { lat: number; lon: number; name: string }[];
+
     const optimized = await getOptimizedRoute(backendDestinations);
     if (!optimized || !Array.isArray(optimized.optimized_route)) {
       toast.error("Failed to optimize route");
@@ -417,6 +428,7 @@ export function CustomMode({
       routeDurationMin: optimized.duration_min,
       routeGeometry: optimized.geometry,
       routeInstructions: optimized.instructions,
+      routeSegmentGeometries: optimized.segment_geometries,
     });
     toast.success("Route optimized!");
     setIsOptimizing(false);
@@ -495,17 +507,19 @@ export function CustomMode({
     setIsSaving(false);
   };
 
-  const handleRouteGuidance = (day: DayPlan) => {
+  const handleRouteGuidance = (day: DayPlan, idx: number) => {
     setViewMode("route-guidance");
+    setRouteSegmentIndex(idx);
   };
   const currentDay = localTripData.days.find(
     (d) => d.id === selectedDay,
   );
 
-  if (viewMode === "route-guidance" && currentDay) {
+  if (viewMode === "route-guidance" && currentDay && routeSegmentIndex !== null) {
     return (
       <RouteGuidance
         day={currentDay}
+        segmentIndex={routeSegmentIndex}
         onBack={() => {
           setViewMode("single");
         }}

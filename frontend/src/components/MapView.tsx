@@ -14,7 +14,7 @@ interface MapViewProps {
   days: DayPlan[];
   viewMode: "single" | "all" | "route-guidance";
   selectedDayId: string;
-  onRouteGuidance: (day: DayPlan) => void;
+  onRouteGuidance: (day: DayPlan, idx: number) => void;
   onMapClick?: (data: { lat: number; lon: number; name: string; address: string }) => void;
   manualStepAction?: string | null;
   onManualActionComplete?: () => void;
@@ -148,7 +148,7 @@ export function MapView({
         case 'route-list': {
           // Choose the first route
           if (currentDay && currentDay.optimizedRoute.length > 0) {
-            onRouteGuidance(currentDay)
+            onRouteGuidance(currentDay, 0);
             toast.success('Choose the first route!');
           } else {
             toast.info('No routes available');
@@ -229,14 +229,18 @@ export function MapView({
                       </Button>
 
                       {selectedPairIndex === idx && (
-                        <Button
-                          className="w-full bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => onRouteGuidance(currentDay)}
-                          data-tutorial="route-list"
-                        >
-                          <Navigation className="w-4 h-4 mr-2" />
-                          Go - Start Navigation
-                        </Button>
+                        <>
+                          {console.log("Index", idx)}
+                          <Button
+                            className="w-full bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => onRouteGuidance(currentDay, idx)}
+                            data-tutorial="route-list"
+                          >
+
+                            <Navigation className="w-4 h-4 mr-2" />
+                            Go - Start Navigation
+                          </Button>
+                        </>
                       )}
                     </div>
                   );

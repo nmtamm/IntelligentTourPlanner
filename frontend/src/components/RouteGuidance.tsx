@@ -8,6 +8,7 @@ import React from 'react';
 
 interface RouteGuidanceProps {
   day: DayPlan;
+  segmentIndex: number;
   onBack: () => void;
 }
 
@@ -21,30 +22,45 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
-  // Use the first and last destination for "from" and "to"
-  const from = day.optimizedRoute?.[0] ?? day.destinations?.[0];
-  const to = day.optimizedRoute?.[day.optimizedRoute.length - 1] ?? day.destinations?.[day.destinations.length - 1];
+export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps) {
+
+  console.log("Segment index:", segmentIndex);
+
+  const from = day.optimizedRoute[segmentIndex];
+  const to = day.optimizedRoute[segmentIndex + 1];
+  const instructions = day.routeInstructions?.[segmentIndex] ?? [];
+  const geometry = day.routeSegmentGeometries?.[segmentIndex];
+  const polylinePositions = geometry ? polyline.decode(geometry).filter(
+    ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
+  ) : [];
+  console.log("Segment index:", segmentIndex);
+  console.log("Geometry string:", geometry);
+  console.log("Decoded polyline positions:", polylinePositions);
 
   // Distance and time from OSRM
   const distance = day.routeDistanceKm ?? 0;
   const estimatedTime = day.routeDurationMin ?? 0;
-
-  // Instructions per leg from OSRM
-  const instructions = day.routeInstructions ?? [];
 
   const fromLat = from?.latitude ?? from?.lat ?? 0;
   const fromLng = from?.longitude ?? from?.lng ?? 0;
   const toLat = to?.latitude ?? to?.lat ?? 0;
   const toLng = to?.longitude ?? to?.lng ?? 0;
 
-  const bounds =
-    from && to
-      ? [
-        [Math.min(fromLat, toLat), Math.min(fromLng, toLng)],
-        [Math.max(fromLat, toLat), Math.max(fromLng, toLng)],
-      ]
-      : undefined;
+  const markerCoords = [
+    [fromLat, fromLng],
+    [toLat, toLng]
+  ];
+  const allCoords = [
+    ...markerCoords,
+    ...polylinePositions
+  ].filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng));
+
+  const bounds = allCoords.length
+    ? [
+      [Math.min(...allCoords.map(([lat]) => lat)), Math.min(...allCoords.map(([_, lng]) => lng))],
+      [Math.max(...allCoords.map(([lat]) => lat)), Math.max(...allCoords.map(([_, lng]) => lng))]
+    ]
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -57,7 +73,7 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Route Info */}
-        <Card className="p-6"  data-tutorial="route-guidance">
+        <Card className="p-6" data-tutorial="route-guidance">
           <div className="space-y-6">
             <h2 className="text-[#004DB6] flex items-center gap-2">
               <Navigation className="w-6 h-6" />
@@ -101,7 +117,7 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
                   <span className="text-sm">Distance:</span>
                   <p className="text-[#004DB6]">{distance.toFixed(2)} km</p>
                 </div>
-                
+
               </div>
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
@@ -115,26 +131,22 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
             {/* Directions */}
             <div className="space-y-3">
               <h3 className="text-gray-900">Turn-by-turn Directions</h3>
-              <div className="space-y-2  max-h-[400px] overflow-y-auto">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {instructions.length > 0 ? (
-                  instructions.map((leg, legIdx) => (
-                    <div key={legIdx} className="mb-4">
-                      <div className="font-semibold text-[#004DB6] mb-2">
-                        Leg {legIdx + 1}: {day.optimizedRoute?.[legIdx]?.name} → {day.optimizedRoute?.[legIdx + 1]?.name}
-                      </div>
-                      {leg.map((direction, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-start gap-3 bg-gray-50 rounded-lg p-3"
-                        >
-                          <div className="bg-[#004DB6] rounded-full w-6 h-6 flex items-center justify-center text-white text-xs shrink-0">
-                            {idx + 1}
-                          </div>
-                          <p className="text-gray-700 text-sm">{direction}</p>
+                  <div className="mb-4">
+
+                    {instructions.map((direction, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3 bg-gray-50 rounded-lg p-3"
+                      >
+                        <div className="bg-[#004DB6] rounded-full w-6 h-6 flex items-center justify-center text-white text-xs shrink-0">
+                          {idx + 1}
                         </div>
-                      ))}
-                    </div>
-                  ))
+                        <p className="text-gray-700 text-sm">{direction}</p>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-gray-500">No instructions available.</div>
                 )}
@@ -172,12 +184,10 @@ export function RouteGuidance({ day, onBack }: RouteGuidanceProps) {
                   </Marker>
                 )}
                 {/* Polyline for the selected segment only */}
-                {day.routeGeometry && (
+                {geometry && polylinePositions.length >= 2 && (
                   <Polyline
-                    positions={polyline.decode(day.routeGeometry).filter(
-                      ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
-                    )}
-                    color="#004DB6"
+                    positions={polylinePositions}
+                    color="#800080"
                     weight={3}
                     opacity={1}
                   />

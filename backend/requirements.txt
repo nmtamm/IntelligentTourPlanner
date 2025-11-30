@@ -13,3 +13,4 @@ requests
 google-genai
 email-validator
 dotenv
+polyline

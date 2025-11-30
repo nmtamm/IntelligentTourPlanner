@@ -1,4 +1,5 @@
 import requests
+import polyline
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 OSRM_URL = "https://router.project-osrm.org"
@@ -33,7 +34,12 @@ def route_osrm(points):
         coords = ";".join([f"{point['lon']},{point['lat']}" for point in points])
         r = requests.get(
             f"{OSRM_URL}/trip/v1/driving/{coords}",
-            params={"overview": "full", "steps": "true"},
+            params={
+                "overview": "full",
+                "steps": "true",
+                "source": "first",
+                "roundtrip": "false",
+            },
             timeout=120,
         )
         r.raise_for_status()
@@ -66,6 +72,25 @@ def route_osrm(points):
             ordered_indices = waypoint_order
 
         optimized_points = [points[i] for i in ordered_indices]
+        for i in range(len(optimized_points)):
+            print(f"Point {i}: {optimized_points[i]}")
+
+        segment_geometries = []
+        for leg in data["trips"][0]["legs"]:
+            all_coords = []
+            for step in leg.get("steps", []):
+                geom = step.get("geometry")
+                if geom:
+                    coords = polyline.decode(geom)
+                    all_coords.extend(coords)
+            if all_coords:
+                # Encode the full list of coordinates as a polyline string
+                segment_geometries.append(polyline.encode(all_coords))
+            else:
+                segment_geometries.append(None)
+
+        for i, geom in enumerate(segment_geometries):
+            print(f"Segment {i} geometry: {geom}")
 
         return {
             "success": True,
@@ -73,6 +98,7 @@ def route_osrm(points):
             "distance_km": data["trips"][0]["distance"] / 1000,
             "duration_min": data["trips"][0]["duration"] / 60,
             "geometry": data["trips"][0].get("geometry"),
+            "segment_geometries": segment_geometries,
             "instructions": instructions,
         }
 
