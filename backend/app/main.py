@@ -17,6 +17,8 @@ from .routers import gemini
 from .routers import exchangerate
 from .routers import foursquare_router
 from .routers import serp_router
+from .routers import places
+from .routers import categories
 
 app = FastAPI(debug=True)
 
@@ -43,6 +45,8 @@ app.include_router(gemini.router)
 app.include_router(exchangerate.router)
 app.include_router(foursquare_router.router)
 app.include_router(serp_router.router)
+app.include_router(places.router)
+app.include_router(categories.router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
