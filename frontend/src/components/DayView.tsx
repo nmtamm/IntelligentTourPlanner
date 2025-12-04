@@ -1,35 +1,128 @@
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Plus, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Loader2 } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
+import { geocodeDestination } from '../utils/geocode';
+import { parseAmount } from '../utils/parseAmount';
+import { makeDestinationFromGeo } from "../utils/destinationFactory";
 
 interface DayViewProps {
   day: DayPlan;
   onUpdate: (day: DayPlan) => void;
   currency: 'USD' | 'VND';
   onCurrencyToggle: () => void;
+  pendingDestination: {
+    name: string;
+    lat: number;
+    lon: number;
+    address: string;
+  } | null;
+  setPendingDestination: (dest: any) => void;
+  generatedPlaces?: any[];
 }
 
-export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewProps) {
+export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination, generatedPlaces }: DayViewProps) {
   const [newDestinationName, setNewDestinationName] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
-  const addDestination = () => {
+  useEffect(() => {
+    if (pendingDestination) {
+      setNewDestinationName(pendingDestination.address || pendingDestination.name || '');
+      // Optionally, clear pendingDestination after using it:
+      // setPendingDestination(null);
+    }
+  }, [pendingDestination, setPendingDestination]);
+
+  useEffect(() => {
+    if (generatedPlaces && generatedPlaces.length > 0) {
+      let detectedCurrency = currency;
+      const newDestinations = generatedPlaces.map((place, idx) => {
+        let price = place.price;
+        let symbol = "";
+        if (typeof price === "string") {
+          // Extract first non-space character (currency symbol)
+          symbol = price.trim().charAt(0);
+          if (symbol === "₫" && currency !== "VND") {
+            detectedCurrency = "VND";
+          } else if (symbol === "$" && currency !== "USD") {
+            detectedCurrency = "USD";
+          }
+          // Remove leading currency symbols and spaces
+          price = price.replace(/^[^\d\-]+/, '').trim();
+        }
+        return {
+          id: `${Date.now()}-${idx}`,
+          name: place.title + ", " + (place.address || ""),
+          address: place.address || "",
+          costs: [{
+            id: `${Date.now()}-${idx}`,
+            amount: price,
+            detail: "",
+            originalAmount: price,
+            originalCurrency: detectedCurrency,
+          }],
+          latitude: place.gps_coordinates.latitude,
+          longitude: place.gps_coordinates.longitude,
+          lat: place.gps_coordinates.latitude,
+          lng: place.gps_coordinates.longitude,
+        };
+      });
+
+      // If currency changed, notify parent
+      if (detectedCurrency !== currency) {
+        onCurrencyToggle();
+      }
+
+      onUpdate({
+        ...day,
+        destinations: [...day.destinations, ...newDestinations],
+        optimizedRoute: [],
+      });
+      toast.success("Generated places added!");
+    }
+    // eslint-disable-next-line
+  }, [generatedPlaces]);
+
+  const addDestination = async () => {
     if (!newDestinationName.trim()) {
       toast.error('Please enter a destination name');
       return;
     }
 
-    const destination: Destination = {
-      id: Date.now().toString(),
-      name: newDestinationName,
-      address: '',
-      costs: [{ id: `${Date.now()}-1`, amount: 0, detail: '' }],
-      lat: 48.8566 + (Math.random() - 0.5) * 0.1,
-      lng: 2.3522 + (Math.random() - 0.5) * 0.1
-    };
+    setIsAdding(true);
+
+    let geo;
+    if (pendingDestination) {
+      geo = {
+        lat: pendingDestination.lat,
+        lng: pendingDestination.lon,
+        address: pendingDestination.address,
+        name: pendingDestination.name,
+      };
+    } else {
+      geo = await geocodeDestination(newDestinationName);
+    }
+
+    if (!geo) {
+      toast.error('Failed to geocode destination. Please try again.');
+      setIsAdding(false);
+      return;
+    }
+
+    // Prevent duplicate addition
+    if (day.destinations.some(d =>
+      d.name === (geo.address || newDestinationName) &&
+      d.latitude === geo.lat &&
+      d.longitude === geo.lng
+    )) {
+      toast.error('This destination already exists.');
+      return;
+    }
+
+    const destination = makeDestinationFromGeo(geo, newDestinationName, currency);
 
     onUpdate({
       ...day,
@@ -38,7 +131,9 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
     });
 
     setNewDestinationName('');
+    setPendingDestination(null);
     toast.success('Destination added!');
+    setIsAdding(false);
   };
 
   const removeDestination = (id: string) => {
@@ -63,8 +158,10 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
 
     const newCost: CostItem = {
       id: `${Date.now()}-${destination.costs.length}`,
-      amount: 0,
-      detail: ''
+      amount: "",
+      detail: '',
+      originalAmount: "",
+      originalCurrency: currency,
     };
 
     updateDestination(destinationId, {
@@ -93,21 +190,29 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
     });
   };
 
-  const calculateDayTotal = () => {
-    return day.destinations.reduce((total, dest) => {
-      return total + dest.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-    }, 0);
-  };
+  function calculateDayTotal() {
+    let minTotal = 0, maxTotal = 0, isApprox = false;
+    day.destinations.forEach(dest => {
+      dest.costs.forEach(cost => {
+        const parsed = parseAmount(cost.amount);
+        minTotal += parsed.min;
+        maxTotal += parsed.max;
+        if (parsed.isApprox) isApprox = true;
+      });
+    });
+    return { minTotal, maxTotal, isApprox };
+  }
 
+  const dayTotal = calculateDayTotal();
   const currencySymbol = currency === 'USD' ? '$' : '₫';
 
   return (
-    <Card className="p-6">
+    <Card className="p-6" data-tutorial-card="destinations">
       <div className="space-y-4">
         <h2 className="text-[#004DB6]">Day {day.dayNumber}</h2>
 
         {/* Add Destination */}
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-tutorial="add-destination">
           <Input
             placeholder="Enter destination name (or click on map)"
             value={newDestinationName}
@@ -115,8 +220,17 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
             onKeyPress={(e) => e.key === 'Enter' && addDestination()}
           />
           <Button onClick={addDestination}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add
+            {isAdding ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add
+              </>
+            )}
           </Button>
         </div>
 
@@ -128,8 +242,11 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
             </p>
           ) : (
             day.destinations.map((destination) => {
-              const totalCost = destination.costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-              
+              const parsedCosts = destination.costs.map(cost => parseAmount(cost.amount));
+              const minTotal = parsedCosts.reduce((sum, c) => sum + c.min, 0);
+              const maxTotal = parsedCosts.reduce((sum, c) => sum + c.max, 0);
+              const isApprox = parsedCosts.some(c => c.isApprox);
+
               return (
                 <div
                   key={destination.id}
@@ -164,10 +281,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
                               {currencySymbol}
                             </button>
                             <Input
-                              type="number"
+                              type="string"
                               value={cost.amount || ''}
-                              onChange={(e) => updateCostItem(destination.id, cost.id, { 
-                                amount: parseFloat(e.target.value) || 0 
+                              onChange={(e) => updateCostItem(destination.id, cost.id, {
+                                amount: e.target.value,
+                                originalAmount: e.target.value,
+                                originalCurrency: currency,
                               })}
                               placeholder="0"
                               className="pl-12"
@@ -175,8 +294,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
                           </div>
                           <Input
                             value={cost.detail}
-                            onChange={(e) => updateCostItem(destination.id, cost.id, { 
-                              detail: e.target.value 
+                            onChange={(e) => updateCostItem(destination.id, cost.id, {
+                              detail: e.target.value
                             })}
                             placeholder="Detail (e.g., entrance fee)"
                           />
@@ -199,6 +318,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
                     size="sm"
                     onClick={() => addCostItem(destination.id)}
                     className="w-full"
+                    data-tutorial="add-cost-item"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Cost Item
@@ -208,7 +328,10 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
                   <div className="pt-2 border-t flex items-center justify-between text-sm">
                     <span className="text-gray-600">Destination Total:</span>
                     <span className="text-gray-900">
-                      {currencySymbol}{totalCost.toLocaleString()}
+                      {currencySymbol}
+                      {isApprox
+                        ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
+                        : minTotal.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -222,8 +345,13 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle }: DayViewPr
           <div className="pt-4 border-t">
             <div className="flex items-center justify-between bg-[#DAF9D8] rounded-lg p-4">
               <span className="text-[#004DB6]">Day {day.dayNumber} Total:</span>
+
               <span className="text-[#004DB6]">
-                {currencySymbol}{calculateDayTotal().toLocaleString()}
+
+                {currencySymbol}
+                {dayTotal.isApprox
+                  ? `${dayTotal.minTotal.toLocaleString()} - ${dayTotal.maxTotal.toLocaleString()}`
+                  : dayTotal.minTotal.toLocaleString()}
               </span>
             </div>
           </div>

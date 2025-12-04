@@ -1,14 +1,43 @@
-import { useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { DayPlan, Destination } from "../types";
 import { MapPin, Navigation, X, Map, List } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvent, Polyline } from "react-leaflet";
+import 'leaflet/dist/leaflet.css';
+import polyline from '@mapbox/polyline';
+import { reverseGeocode } from "../utils/reverseGeocode";
+import { parseAmount } from "../utils/parseAmount";
+import { toast } from "sonner";
 
 interface MapViewProps {
   days: DayPlan[];
   viewMode: "single" | "all" | "route-guidance";
   selectedDayId: string;
-  onRouteGuidance: (from: Destination, to: Destination) => void;
+  onRouteGuidance: (day: DayPlan, idx: number) => void;
+  onMapClick?: (data: { lat: number; lon: number; name: string; address: string }) => void;
+  manualStepAction?: string | null;
+  onManualActionComplete?: () => void;
+  resetMapView?: boolean;
+}
+
+function FitBounds({ bounds }) {
+  const map = useMap();
+  React.useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [bounds, map]);
+  return null;
+}
+
+function MapClickHandler({ onClick }) {
+  useMapEvent("click", async (e) => {
+    const { lat, lng } = e.latlng;
+    const { name, address } = await reverseGeocode(lat, lng);
+    onClick({ lat, lon: lng, name, address });
+  });
+  return null;
 }
 
 export function MapView({
@@ -16,17 +45,34 @@ export function MapView({
   viewMode,
   selectedDayId,
   onRouteGuidance,
-}: MapViewProps) {
-  const [selectedDestination, setSelectedDestination] =
-    useState<Destination | null>(null);
-  const [mapListView, setMapListView] = useState<
-    "map" | "list"
-  >("map");
-  const [selectedPairIndex, setSelectedPairIndex] = useState<
-    number | null
-  >(null);
+  isExpanded,
+  userLocation,
+  onMapClick,
+  manualStepAction,
+  onManualActionComplete,
+  resetMapView,
+}: MapViewProps & { isExpanded?: boolean; userLocation?: { lat: number; lng: number } | null }) {
 
-  // Get destinations based on view mode
+  const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
+
+  const currentDay = days.find((d) => d.id === selectedDayId);
+  const hasOptimizedRoute = viewMode === "single" && currentDay && currentDay.optimizedRoute.length > 0;
+
+  const [mapListView, setMapListView] = useState<"map" | "list">(hasOptimizedRoute ? "list" : "map");
+  const [selectedPairIndex, setSelectedPairIndex] = useState<number | null>(null);
+
+  const mapRef = useRef<any>(null);
+
+  // Reset to map view when resetMapView is triggered
+  useEffect(() => {
+    if (resetMapView) {
+      setMapListView("map");
+      setSelectedDestination(null);
+      setSelectedPairIndex(null);
+    }
+  }, [resetMapView]);
+
+  // Determine destinations to display based on view mode
   const getDestinations = () => {
     if (viewMode === "single") {
       const day = days.find((d) => d.id === selectedDayId);
@@ -39,72 +85,91 @@ export function MapView({
   };
 
   const destinations = getDestinations();
-  const currentDay = days.find((d) => d.id === selectedDayId);
-  const hasOptimizedRoute =
-    viewMode === "single" &&
-    currentDay &&
-    currentDay.optimizedRoute.length > 0;
 
-  // Calculate map bounds
-  if (destinations.length === 0) {
-    return (
-      <Card className="p-6 h-[700px] flex items-center justify-center sticky top-6">
-        <div className="text-center text-gray-500">
-          <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-          <p>Add destinations to see them on the map</p>
-        </div>
-      </Card>
-    );
-  }
+  const validDestinations = destinations.filter(
+    d =>
+      typeof d.latitude === "number" &&
+      typeof d.longitude === "number" &&
+      !isNaN(d.latitude) &&
+      !isNaN(d.longitude)
+  );
 
-  const lats = destinations.map((d) => d.lat);
-  const lngs = destinations.map((d) => d.lng);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const centerLat = (minLat + maxLat) / 2;
-  const centerLng = (minLng + maxLng) / 2;
+  // Calculate bounds to fit all markers and route
+  const routeCoords = hasOptimizedRoute && currentDay && currentDay.routeGeometry
+    ? polyline.decode(currentDay.routeGeometry)
+    : [];
 
-  const mapWidth = 700;
-  const mapHeight = 600;
-  const padding = 60;
+  const allCoords = [
+    ...validDestinations.map(d => [d.latitude, d.longitude]),
+    ...routeCoords
+  ].filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng));
 
-  const latRange = maxLat - minLat || 0.1;
-  const lngRange = maxLng - minLng || 0.1;
+  const bounds = allCoords.length
+    ? [
+      [Math.min(...allCoords.map(([lat]) => lat)), Math.min(...allCoords.map(([_, lng]) => lng))],
+      [Math.max(...allCoords.map(([lat]) => lat)), Math.max(...allCoords.map(([_, lng]) => lng))]
+    ]
+    : undefined;
 
-  const toMapX = (lng: number) => {
-    return (
-      padding +
-      ((lng - minLng) / lngRange) * (mapWidth - 2 * padding)
-    );
-  };
+  // Determine map center
+  const defaultCenter: [number, number] = [10.770048, 106.699707];
+  const mapCenter: [number, number] = userLocation
+    ? [userLocation.lat, userLocation.lng]
+    : defaultCenter;
 
-  const toMapY = (lat: number) => {
-    return (
-      mapHeight -
-      (padding +
-        ((lat - minLat) / latRange) * (mapHeight - 2 * padding))
-    );
-  };
-
-  // Generate route pairs
-  const getRoutePairs = (): Array<
-    [Destination, Destination]
-  > => {
-    if (!hasOptimizedRoute || !currentDay) return [];
-    const route = currentDay.optimizedRoute;
-    const pairs: Array<[Destination, Destination]> = [];
-    for (let i = 0; i < route.length - 1; i++) {
-      pairs.push([route[i], route[i + 1]]);
+  // Handle map resize on expansion change
+  useEffect(() => {
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current.invalidateSize();
+      }, 0);
     }
-    return pairs;
-  };
+  }, [isExpanded]);
 
-  const routePairs = getRoutePairs();
+  // Handle manual step actions from User Manual
+  useEffect(() => {
+    if (!manualStepAction || !onManualActionComplete) return;
+
+    const handleAction = async () => {
+      switch (manualStepAction) {
+        case 'map-view': {
+          // Switch to Route List view
+          if (hasOptimizedRoute) {
+            setMapListView('list');
+            setSelectedPairIndex(0);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            toast.success('Switched to Route List view!');
+          } else {
+            toast.info('Optimize a route first to see the Route List');
+          }
+          break;
+        }
+
+        case 'route-list': {
+          // Choose the first route
+          if (currentDay && currentDay.optimizedRoute.length > 0) {
+            onRouteGuidance(currentDay, 0);
+            toast.success('Choose the first route!');
+          } else {
+            toast.info('No routes available');
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      // Clear the action
+      onManualActionComplete();
+    };
+
+    handleAction();
+  }, [manualStepAction, onManualActionComplete, hasOptimizedRoute, currentDay, onRouteGuidance]);
+
 
   return (
-    <Card className="p-6 sticky top-6">
+    <Card className="p-6 sticky top-6" data-tutorial-card="map">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Button
@@ -115,6 +180,7 @@ export function MapView({
               )
             }
             className="text-gray-900 hover:bg-accent px-2 py-1 h-auto font-semibold text-[16px]"
+            data-tutorial="map-view"
           >
             {mapListView === "map" ? (
               <>
@@ -133,66 +199,57 @@ export function MapView({
         {/* List View */}
         {mapListView === "list" && hasOptimizedRoute && (
           <div className="space-y-3">
-            <div className="bg-[#DAF9D8] rounded-lg p-4">
+            <div className="bg-[#DAF9D8] rounded-lg p-4 max-h-[600px] overflow-y-auto">
               <p className="text-sm text-[#004DB6] mb-3">
                 Click on a route segment to navigate:
               </p>
               <div className="space-y-2">
-                {routePairs.map((pair, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <Button
-                      variant={
-                        selectedPairIndex === idx
-                          ? "default"
-                          : "outline"
-                      }
-                      className="w-full justify-start text-left h-auto py-3"
-                      onClick={() =>
-                        setSelectedPairIndex(
-                          selectedPairIndex === idx
-                            ? null
-                            : idx,
-                        )
-                      }
-                    >
-                      <div className="flex items-center gap-2 w-full">
-                        <span className="bg-[#DAF9D8] text-[#004DB6] rounded-full w-6 h-6 flex items-center justify-center text-xs shrink-0">
-                          {idx + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm truncate">
-                            {pair[0].name}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            ↓
-                          </div>
-                          <div className="text-sm truncate">
-                            {pair[1].name}
-                          </div>
-                        </div>
-                        <Navigation className="w-4 h-4 shrink-0" />
-                      </div>
-                    </Button>
-
-                    {selectedPairIndex === idx && (
+                {currentDay.optimizedRoute.slice(0, -1).map((from, idx) => {
+                  const to = currentDay.optimizedRoute[idx + 1];
+                  return (
+                    <div key={idx} className="space-y-2">
                       <Button
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        variant={selectedPairIndex === idx ? "default" : "outline"}
+                        className="w-full justify-start text-left h-auto py-3"
                         onClick={() =>
-                          onRouteGuidance(pair[0], pair[1])
+                          setSelectedPairIndex(selectedPairIndex === idx ? null : idx)
                         }
                       >
-                        <Navigation className="w-4 h-4 mr-2" />
-                        Go - Start Navigation
+                        <div className="flex items-center gap-2 w-full">
+                          <span className="bg-[#DAF9D8] text-[#004DB6] rounded-full w-6 h-6 flex items-center justify-center text-xs shrink-0">
+                            {idx + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm truncate">{from.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">↓</div>
+                            <div className="text-sm truncate">{to.name}</div>
+                          </div>
+                          <Navigation className="w-4 h-4 shrink-0" />
+                        </div>
                       </Button>
-                    )}
-                  </div>
-                ))}
+
+                      {selectedPairIndex === idx && (
+                        <>
+                          {console.log("Index", idx)}
+                          <Button
+                            className="w-full bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => onRouteGuidance(currentDay, idx)}
+                            data-tutorial="route-list"
+                          >
+
+                            <Navigation className="w-4 h-4 mr-2" />
+                            Go - Start Navigation
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-
             <div className="text-sm text-gray-600 text-center">
-              {routePairs.length} route segment
-              {routePairs.length !== 1 ? "s" : ""}
+              {currentDay.optimizedRoute.length - 1} route segment
+              {currentDay.optimizedRoute.length - 1 !== 1 ? "s" : ""}
             </div>
           </div>
         )}
@@ -201,124 +258,55 @@ export function MapView({
         {mapListView === "map" && (
           <>
             {/* Map */}
-            <div className="bg-gray-50 rounded-lg overflow-hidden border relative">
-              <svg
-                viewBox={`0 0 ${mapWidth} ${mapHeight}`}
-                className="w-full h-auto"
-                style={{ maxHeight: "550px" }}
-              >
-                {/* Background */}
-                <rect
-                  width={mapWidth}
-                  height={mapHeight}
-                  fill="#f0f9ff"
-                />
+            <div className="rounded-lg overflow-hidden border relative">
+              <div className="leaflet-container" style={{ height: "550px", width: "100%" }}>
+                <MapContainer
+                  ref={mapRef}
+                  center={mapCenter}
+                  zoom={13}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <MapClickHandler onClick={onMapClick} />
 
-                {/* Grid */}
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <g key={i} opacity="0.1">
-                    <line
-                      x1={i * (mapWidth / 10)}
-                      y1={0}
-                      x2={i * (mapWidth / 10)}
-                      y2={mapHeight}
-                      stroke="#94a3b8"
-                      strokeWidth="1"
-                    />
-                    <line
-                      x1={0}
-                      y1={i * (mapHeight / 10)}
-                      x2={mapWidth}
-                      y2={i * (mapHeight / 10)}
-                      stroke="#94a3b8"
-                      strokeWidth="1"
-                    />
-                  </g>
-                ))}
-
-                {/* Route Lines */}
-                {hasOptimizedRoute &&
-                  currentDay &&
-                  currentDay.optimizedRoute.map((dest, idx) => {
-                    if (idx === 0) return null;
-                    const prev =
-                      currentDay.optimizedRoute[idx - 1];
-                    return (
-                      <line
-                        key={`line-${dest.id}`}
-                        x1={toMapX(prev.lng)}
-                        y1={toMapY(prev.lat)}
-                        x2={toMapX(dest.lng)}
-                        y2={toMapY(dest.lat)}
-                        stroke="#6366f1"
-                        strokeWidth="3"
-                        strokeDasharray="5,5"
-                        opacity="0.6"
-                      />
-                    );
-                  })}
-
-                {/* Destination Markers */}
-                {destinations.map((dest, idx) => {
-                  const x = toMapX(dest.lng);
-                  const y = toMapY(dest.lat);
-                  const isSelected =
-                    selectedDestination?.id === dest.id;
-
-                  return (
-                    <g
-                      key={dest.id}
-                      onClick={() =>
-                        setSelectedDestination(dest)
-                      }
-                      className="cursor-pointer"
-                    >
-                      {/* Marker Pin */}
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={isSelected ? "12" : "10"}
-                        fill="white"
-                        stroke={
-                          isSelected
-                            ? "#f59e0b"
-                            : hasOptimizedRoute
-                              ? "#6366f1"
-                              : "#10b981"
-                        }
-                        strokeWidth={isSelected ? "4" : "3"}
-                      />
-                      {hasOptimizedRoute && (
-                        <text
-                          x={x}
-                          y={y + 1}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fontSize="10"
-                          fill="#6366f1"
-                          className="pointer-events-none"
+                  <FitBounds bounds={bounds} />
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  {
+                    hasOptimizedRoute && currentDay && currentDay.routeGeometry && (
+                      <>
+                        <Polyline
+                          positions={polyline.decode(currentDay.routeGeometry).filter(
+                            ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
+                          )}
+                          color="#004DB6"
+                          weight={3}
+                          opacity={1}
+                        />
+                      </>
+                    )
+                  }
+                  {
+                    destinations
+                      .filter(loc =>
+                        typeof loc.latitude === "number" &&
+                        typeof loc.longitude === "number" &&
+                        !isNaN(loc.latitude) &&
+                        !isNaN(loc.longitude)
+                      )
+                      .map((loc, idx) => (
+                        <Marker
+                          key={idx}
+                          position={[loc.latitude, loc.longitude]}
                         >
-                          {idx + 1}
-                        </text>
-                      )}
+                          <Popup>{loc.name}</Popup>
+                        </Marker>
+                      ))
+                  }
+                </MapContainer>
+              </div>
 
-                      {/* Label */}
-                      <text
-                        x={x}
-                        y={y - 18}
-                        textAnchor="middle"
-                        fontSize="11"
-                        fill="#1e293b"
-                        className="pointer-events-none"
-                      >
-                        {dest.name.length > 15
-                          ? dest.name.substring(0, 15) + "..."
-                          : dest.name}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
 
               {/* Selected Destination Details */}
               {selectedDestination && (
@@ -332,20 +320,19 @@ export function MapView({
                         {selectedDestination.address}
                       </p>
                       <div className="mt-2 space-y-1">
-                        {selectedDestination.costs.map(
-                          (cost) => (
-                            <div
-                              key={cost.id}
-                              className="text-sm text-gray-600"
-                            >
-                              {cost.detail &&
-                                `${cost.detail}: `}
+                        {selectedDestination.costs.map((cost) => {
+                          const parsed = parseAmount(cost.amount);
+                          return (
+                            <div key={cost.id} className="text-sm text-gray-600">
+                              {cost.detail && `${cost.detail}: `}
                               <span className="text-gray-900">
-                                ${cost.amount}
+                                {parsed.isApprox
+                                  ? `$${parsed.min.toLocaleString()} - $${parsed.max.toLocaleString()}`
+                                  : `$${parsed.min.toLocaleString()}`}
                               </span>
                             </div>
-                          ),
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
                     <Button
@@ -377,6 +364,6 @@ export function MapView({
           </>
         )}
       </div>
-    </Card>
+    </Card >
   );
 }

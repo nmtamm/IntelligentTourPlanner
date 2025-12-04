@@ -217,18 +217,25 @@ function generateSampleDestinations(region: string, currency: 'USD' | 'VND'): De
     const costItems: CostItem[] = [
       {
         id: `${idx}-1`,
-        amount: Math.floor((Math.random() * 30 + 10) * multiplier),
+        amount: String(Math.floor((Math.random() * 30 + 10) * multiplier)),
+        originalAmount: String(Math.floor((Math.random() * 30 + 10) * multiplier)),
+        originalCurrency: currency,
         detail: 'Entrance fee'
       }
     ];
+
+    const lat = 48.8566 + (Math.random() - 0.5) * 0.1;
+    const lng = 2.3522 + (Math.random() - 0.5) * 0.1;
 
     return {
       id: String(idx + 1),
       name: `${region} ${place.name}`,
       address: `${region} City Center`,
       costs: costItems,
-      lat: 48.8566 + (Math.random() - 0.5) * 0.1,
-      lng: 2.3522 + (Math.random() - 0.5) * 0.1
+      lat: lat,
+      lng: lng,
+      latitude: lat,
+      longitude: lng
     };
   });
 }
