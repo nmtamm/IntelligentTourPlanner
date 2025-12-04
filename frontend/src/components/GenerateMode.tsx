@@ -41,7 +41,7 @@ export function GenerateMode({ onGenerate, currency, onCurrencyToggle }: Generat
 
     // Calculate number of days
     const dayCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
+
     // Generate sample plan based on inputs
     const sampleDestinations = generateSampleDestinations(destination, currency);
     const days: DayPlan[] = [];
@@ -200,7 +200,7 @@ export function GenerateMode({ onGenerate, currency, onCurrencyToggle }: Generat
 // Helper function to generate sample destinations
 function generateSampleDestinations(region: string, currency: 'USD' | 'VND'): Destination[] {
   const multiplier = currency === 'VND' ? 25000 : 1;
-  
+
   const samplePlaces = [
     { name: 'Historic Museum', type: 'museum' },
     { name: 'City Cathedral', type: 'landmark' },
@@ -224,18 +224,16 @@ function generateSampleDestinations(region: string, currency: 'USD' | 'VND'): De
       }
     ];
 
-    const lat = 48.8566 + (Math.random() - 0.5) * 0.1;
-    const lng = 2.3522 + (Math.random() - 0.5) * 0.1;
+    const latitude = 48.8566 + (Math.random() - 0.5) * 0.1;
+    const longitude = 2.3522 + (Math.random() - 0.5) * 0.1;
 
     return {
       id: String(idx + 1),
       name: `${region} ${place.name}`,
       address: `${region} City Center`,
       costs: costItems,
-      lat: lat,
-      lng: lng,
-      latitude: lat,
-      longitude: lng
+      latitude,
+      longitude
     };
   });
 }

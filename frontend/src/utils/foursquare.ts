@@ -1,3 +1,5 @@
+import { API_HOST } from './config';
+
 export async function fetchFoursquarePlaces({ ll, near = undefined, limit = 10, query }) {
     const params = new URLSearchParams();
     if (ll) params.append('ll', ll);
@@ -6,7 +8,7 @@ export async function fetchFoursquarePlaces({ ll, near = undefined, limit = 10, 
     if (query) params.append('query', query);
 
     const response = await fetch(
-        `http://localhost:8000/api/foursquare/search?${params.toString()}`,
+        `${API_HOST}/api/foursquare/search?${params.toString()}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }

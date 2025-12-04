@@ -4,8 +4,10 @@ import { ArrowLeft, Navigation, MapPin, Clock, Route } from 'lucide-react';
 import { DayPlan, Destination } from '../types';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import polyline from '@mapbox/polyline';
-import React from 'react';
-import { t } from '../utils/translations';
+import React, { useEffect } from 'react';
+import { t, getDirectionVi, osrmModifierVi } from '../utils/translations';
+import { translateEnToVi, translateViToEn } from '../utils/gtranslate';
+import { RouteInstruction } from '../types';
 
 interface RouteGuidanceProps {
   day: DayPlan;
@@ -24,30 +26,37 @@ function FitBounds({ bounds }) {
   return null;
 }
 
+function capitalizeFirst(str: string): string {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
+}
+
 export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuidanceProps) {
-
-  console.log("Segment index:", segmentIndex);
-
+  // Language handling
   const lang = language.toLowerCase() as 'en' | 'vi';
+
+  // Extract from/to destinations
   const from = day.optimizedRoute[segmentIndex];
   const to = day.optimizedRoute[segmentIndex + 1];
-  const instructions = day.routeInstructions?.[segmentIndex] ?? [];
+
+  // Extract instructions
+  const instructions: RouteInstruction[] = day.routeInstructions?.[segmentIndex] ?? [];
+  const [translatedDirections, setTranslatedDirections] = React.useState<string[]>([]);
+
+  // Extract polyline geometry
   const geometry = day.routeSegmentGeometries?.[segmentIndex];
   const polylinePositions = geometry ? polyline.decode(geometry).filter(
     ([lat, lng]) => !isNaN(lat) && !isNaN(lng)
   ) : [];
-  console.log("Segment index:", segmentIndex);
-  console.log("Geometry string:", geometry);
-  console.log("Decoded polyline positions:", polylinePositions);
+
 
   // Distance and time from OSRM
   const distance = day.routeDistanceKm ?? 0;
   const estimatedTime = day.routeDurationMin ?? 0;
 
-  const fromLat = from?.latitude ?? from?.lat ?? 0;
-  const fromLng = from?.longitude ?? from?.lng ?? 0;
-  const toLat = to?.latitude ?? to?.lat ?? 0;
-  const toLng = to?.longitude ?? to?.lng ?? 0;
+  const fromLat = from?.latitude ?? 0;
+  const fromLng = from?.longitude ?? 0;
+  const toLat = to?.latitude ?? 0;
+  const toLng = to?.longitude ?? 0;
 
   const markerCoords = [
     [fromLat, fromLng],
@@ -64,6 +73,16 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
       [Math.max(...allCoords.map(([lat]) => lat)), Math.max(...allCoords.map(([_, lng]) => lng))]
     ]
     : undefined;
+
+  useEffect(() => {
+    if (language === "VI" && instructions.length > 0) {
+      // No need to call backend for translation, use local dictionary
+      const results = instructions.map(instr => getDirectionVi(instr.type, instr.modifier));
+      setTranslatedDirections(results);
+    } else {
+      setTranslatedDirections([]);
+    }
+  }, [instructions, language]);
 
   return (
     <div className="space-y-6">
@@ -138,7 +157,7 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
                 {instructions.length > 0 ? (
                   <div className="mb-4">
 
-                    {instructions.map((direction, idx) => (
+                    {instructions.map((instr, idx) => (
                       <div
                         key={idx}
                         className="flex items-start gap-3 bg-gray-50 rounded-lg p-3"
@@ -146,7 +165,17 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
                         <div className="bg-[#004DB6] rounded-full w-6 h-6 flex items-center justify-center text-white text-xs shrink-0">
                           {idx + 1}
                         </div>
-                        <p className="text-gray-700 text-sm">{direction}</p>
+                        <p className="text-gray-700 text-sm">
+                          {language === 'EN'
+                            ? instr.type === "new name"
+                              ? `${capitalizeFirst(instr.modifier)}`
+                              : `${capitalizeFirst(instr.type)} ${instr.modifier}`.replace(/\s+$/, '')
+                            : instr.type === "new name"
+                              ? capitalizeFirst(osrmModifierVi[instr.modifier] || instr.modifier)
+                              : translatedDirections[idx]
+                          } {language === 'EN' ? "onto" : "vào"}
+                          {instr.name && <span className="font-semibold"> {instr.name}</span>}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -176,13 +205,13 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
                 />
                 {/* From marker */}
                 {from && (
-                  <Marker position={[from.latitude ?? from.lat, from.longitude ?? from.lng]}>
+                  <Marker position={[from.latitude, from.longitude]}>
                     <Popup>{from.name}</Popup>
                   </Marker>
                 )}
                 {/* To marker */}
                 {to && (
-                  <Marker position={[to.latitude ?? to.lat, to.longitude ?? to.lng]}>
+                  <Marker position={[to.latitude, to.longitude]}>
                     <Popup>{to.name}</Popup>
                   </Marker>
                 )}

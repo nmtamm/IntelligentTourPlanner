@@ -2,8 +2,8 @@ import React, { useEffect, useState, ReactNode } from "react";
 import { checkGPS, sendLocationToBackend } from "../utils/geolocation";
 
 export type UserLocation = {
-  lat: number;
-  lng: number;
+  latitude: number;
+  longitude: number;
 };
 
 type GpsStatus = "requesting" | "granted" | "denied";
@@ -25,8 +25,8 @@ export const GpsGate: React.FC<GpsGateProps> = ({
     checkGPS((gps) => {
       if (gps) {
         const loc: UserLocation = {
-          lat: gps.latitude,
-          lng: gps.longitude,
+          latitude: gps.latitude,
+          longitude: gps.longitude,
         };
 
         onLocation(loc);

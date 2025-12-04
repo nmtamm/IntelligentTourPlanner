@@ -19,8 +19,8 @@ interface DayViewProps {
   onCurrencyToggle: () => void;
   pendingDestination: {
     name: string;
-    lat: number;
-    lon: number;
+    latitude: number;
+    longitude: number;
     address: string;
   } | null;
   setPendingDestination: (dest: any) => void;
@@ -51,9 +51,9 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
         if (typeof price === "string") {
           // Extract first non-space character (currency symbol)
           symbol = price.trim().charAt(0);
-          if (symbol === "VND" && currency !== "VND") {
+          if (symbol === "₫" && currency !== "VND") {
             detectedCurrency = "VND";
-          } else if (symbol === "USD" && currency !== "USD") {
+          } else if (symbol === "$" && currency !== "USD") {
             detectedCurrency = "USD";
           }
           // Remove leading currency symbols and spaces
@@ -72,8 +72,6 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
           }],
           latitude: place.gps_coordinates.latitude,
           longitude: place.gps_coordinates.longitude,
-          lat: place.gps_coordinates.latitude,
-          lng: place.gps_coordinates.longitude,
         };
       });
 
@@ -104,8 +102,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     let geo;
     if (pendingDestination) {
       geo = {
-        lat: pendingDestination.lat,
-        lng: pendingDestination.lon,
+        latitude: pendingDestination.latitude,
+        longitude: pendingDestination.longitude,
         address: pendingDestination.address,
         name: pendingDestination.name,
       };

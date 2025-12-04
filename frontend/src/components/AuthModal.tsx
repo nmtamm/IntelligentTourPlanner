@@ -188,14 +188,14 @@ export function AuthModal({ isOpen, onClose, onLogin, language, }) {
               {t('cancel', lang)}
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? 'Please wait...' : (isLoginMode ? t('signUp', lang) : t('login', lang))}
+              {loading ? 'Please wait...' : (isLoginMode ? t('login', lang) : t('signUp', lang))}
             </Button>
           </div>
 
           <div className="text-center">
             <button
               type="button"
-              onClick={() => { 
+              onClick={() => {
                 setIsLoginMode(!isLoginMode);
                 setErrorMessage(null);
               }}

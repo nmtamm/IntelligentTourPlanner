@@ -1,8 +1,9 @@
 import { geocodeDestination } from "./geocode";
+import { API_HOST } from './config';
 
 export async function fetchSerpLocalResults(query: string, ll: string) {
     const response = await fetch(
-        `http://localhost:8000/api/serp/locations?query=${encodeURIComponent(query)}&ll=${encodeURIComponent(ll)}`,
+        `${API_HOST}/api/serp/locations?query=${encodeURIComponent(query)}&ll=${encodeURIComponent(ll)}`,
         {
             method: "GET",
             headers: {
@@ -31,15 +32,15 @@ export async function generatePlaces(result, userLocation) {
     let ll: string;
     if (result.starting_point) {
         const geo = await geocodeDestination(result.starting_point);
-        if (geo && geo.lat && geo.lng) {
-            ll = `@${geo.lat},${geo.lng},15.1z`;
+        if (geo && geo.latitude && geo.longitude) {
+            ll = `@${geo.latitude},${geo.longitude},15.1z`;
         } else if (userLocation) {
-            ll = `${userLocation.lat},${userLocation.lng}`;
+            ll = `${userLocation.latitude},${userLocation.longitude}`;
         } else {
             ll = "";
         }
     } else if (userLocation) {
-        ll = `${userLocation.lat},${userLocation.lng}`;
+        ll = `${userLocation.latitude},${userLocation.longitude}`;
     } else {
         ll = "";
     }

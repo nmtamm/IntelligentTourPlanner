@@ -11,10 +11,14 @@ export interface Destination {
   name: string;
   address: string;
   costs: CostItem[];
-  lat: number;
-  lng: number;
   longitude: number;
   latitude: number;
+}
+
+export interface RouteInstruction {
+  type: string;
+  modifier: string;
+  name: string;
 }
 
 export interface DayPlan {
@@ -25,7 +29,7 @@ export interface DayPlan {
   routeDistanceKm?: number;
   routeDurationMin?: number;
   routeGeometry?: string;
-  routeInstructions?: string[][];
+  routeInstructions?: RouteInstruction[][];
   routeSegmentGeometries?: string[];
 }
 

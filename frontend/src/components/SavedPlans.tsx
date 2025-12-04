@@ -56,8 +56,8 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
             id: String(dest.id),
             name: dest.name,
             address: dest.address,
-            lat: dest.latitude,
-            lng: dest.longitude,
+            latitude: dest.latitude,
+            longitude: dest.longitude,
             costs: dest.costs.map(cost => ({
               id: String(cost.id),
               amount: cost.amount,
@@ -181,11 +181,10 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Wallet className="w-4 h-4" />
-                    {currencySymbol}
                     {isApprox
                       ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
                       : minTotal.toLocaleString()
-                    } {t('total', lang)}
+                    } {currencySymbol}
                   </div>
                 </div>
 

@@ -52,7 +52,7 @@ interface CustomModeProps {
   isLoggedIn: boolean;
   currentUser: string | null;
   planId?: string | null;
-  userLocation?: { lat: number; lng: number } | null;
+  userLocation?: { latitude: number; longitude: number } | null;
   manualStepAction?: string | null;
   onManualActionComplete?: () => void;
   resetToDefault?: boolean;
@@ -100,8 +100,8 @@ export function CustomMode({
   const [allPlaces, setAllPlaces] = useState<any[]>([]);
   const [pendingDestination, setPendingDestination] = useState<{
     name: string;
-    lat: number;
-    lon: number;
+    latitude: number;
+    longitude: number;
     address: string;
   } | null>(null);
 
@@ -389,17 +389,17 @@ export function CustomMode({
     const backendDestinations = [
       userLocation
         ? {
-          lat: userLocation.lat,
-          lon: userLocation.lng,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
           name: "User Location",
         }
         : null,
       ...day.destinations.map(d => ({
-        lat: d.latitude ?? d.lat,
-        lon: d.longitude ?? d.lng,
+        latitude: d.latitude,
+        longitude: d.longitude,
         name: d.name,
       })),
-    ].filter(Boolean) as { lat: number; lon: number; name: string }[];
+    ].filter(Boolean) as { latitude: number; longitude: number; name: string }[];
 
     const optimized = await getOptimizedRoute(backendDestinations);
     if (!optimized || !Array.isArray(optimized.optimized_route)) {
@@ -410,13 +410,11 @@ export function CustomMode({
 
     // Convert lon to lng for frontend usage
     const optimizedRoute = optimized.optimized_route.map((dest) => {
-      const latitude = dest.latitude ?? dest.lat;
-      const longitude = dest.longitude ?? dest.lon;
+      const latitude = dest.latitude;
+      const longitude = dest.longitude;
 
       return {
         ...dest,
-        lat: latitude,
-        lng: longitude,
         latitude,
         longitude,
       };
@@ -469,8 +467,8 @@ export function CustomMode({
         destinations: day.destinations.map((dest, index) => ({
           name: dest.name,
           address: dest.address || '',
-          latitude: dest.lat || dest.latitude || null,
-          longitude: dest.lng || dest.longitude || null,
+          latitude: dest.latitude || null,
+          longitude: dest.longitude || null,
           order: index,
           costs: dest.costs.map(cost => ({
             amount: typeof cost.amount === "string" ? cost.amount : String(cost.amount),
@@ -842,9 +840,9 @@ export function CustomMode({
             ) : (
               <>
                 <Calculator className="w-4 h-4 mr-2" />
-                  {viewMode === "all"
-                    ? t('autoEstimateAllDays', lang)
-                    : t('autoEstimateCurrentDay', lang)}
+                {viewMode === "all"
+                  ? t('autoEstimateAllDays', lang)
+                  : t('autoEstimateCurrentDay', lang)}
               </>
             )}
           </Button>
@@ -959,7 +957,12 @@ export function CustomMode({
             manualStepAction={manualStepAction}
             onManualActionComplete={onManualActionComplete}
             onMapClick={data => {
-              setPendingDestination(data);
+              setPendingDestination({
+                name: data.name,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                address: data.address,
+              });
             }}
             resetMapView={resetToDefault}
             language={language}

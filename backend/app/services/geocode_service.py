@@ -45,16 +45,6 @@ def route_osrm(points):
         r.raise_for_status()
         data = r.json()
 
-        instructions = []
-        for leg in data["trips"][0]["legs"]:
-            leg_instructions = []
-            for step in leg.get("steps", []):
-                maneuver = step.get("maneuver", {})
-                road_name = step.get("name", "")
-                instr = f"{maneuver.get('type', '').capitalize()} {maneuver.get('modifier', '')} onto {road_name}".strip()
-                leg_instructions.append(instr)
-            instructions.append(leg_instructions)
-
         if "trips" not in data or not data["trips"]:
             return {"success": False, "error": "No trips found"}
 
@@ -88,6 +78,23 @@ def route_osrm(points):
                 segment_geometries.append(polyline.encode(all_coords))
             else:
                 segment_geometries.append(None)
+
+        instructions = []
+        for leg in data["trips"][0]["legs"]:
+            leg_instructions = []
+            for step in leg.get("steps", []):
+                maneuver = step.get("maneuver", {})
+                road_name = step.get("name", "")
+                # Separate direction and name
+                direction = f"{maneuver.get('type', '').capitalize()} {maneuver.get('modifier', '')}".strip()
+                leg_instructions.append(
+                    {
+                        "type": maneuver.get("type", ""),
+                        "modifier": maneuver.get("modifier", ""),
+                        "name": road_name,
+                    }
+                )
+            instructions.append(leg_instructions)
 
         for i, geom in enumerate(segment_geometries):
             print(f"Segment {i} geometry: {geom}")

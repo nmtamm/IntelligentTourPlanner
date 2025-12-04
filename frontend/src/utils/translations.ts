@@ -22,7 +22,7 @@ export const TRANSLATIONS = {
     en: "User Manual",
     vi: "Hướng dẫn sử dụng"
   },
-  
+
   // Main Title Section
   generateYourPerfectTrip: {
     en: "Generate Your Perfect Trip",
@@ -32,7 +32,7 @@ export const TRANSLATIONS = {
     en: "Let AI create an optimized itinerary for you",
     vi: "Hãy để AI tạo một lịch trình tối ưu cho bạn"
   },
-  
+
   // Text Area Placeholder
   tripPreferencesPlaceholder: {
     en: `Tell us about your dream trip and your travel constraints so we can plan it perfectly for you!
@@ -48,7 +48,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
       💰 Ngân sách của bạn là bao nhiêu?
       👥 Có bao nhiêu người đi du lịch?`
   },
-  
+
   // Buttons
   generate: {
     en: "Generate",
@@ -78,7 +78,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Optimizing",
     vi: "Đang tối ưu"
   },
-  
+
   // Custom Mode Section
   enterTripName: {
     en: "Enter trip name...",
@@ -148,7 +148,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Costs estimated for all days",
     vi: "Chi phí đã được ước tính cho tất cả các ngày"
   },
-  
+
   // Day Management
   day: {
     en: "Day",
@@ -166,7 +166,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "View All Days",
     vi: "Xem tất cả các ngày"
   },
-  
+
   // Destinations
   destination: {
     en: "destination",
@@ -184,7 +184,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "e.g. The Complex of Hue Monuments, Ho Xuan Huong, Saigon Notre-Dame Basilica, ...",
     vi: "ví dụ: Quần thể di tích cố đô Huế, Hồ Xuân Hương, Nhà thờ Đức Bà Sài Gòn..."
   },
-  
+
   // Route & Map
   mapView: {
     en: "Map View",
@@ -214,7 +214,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Showing all days",
     vi: "Hiển thị tất cả các ngày"
   },
-  
+
   // Route Guidance
   routeGuidance: {
     en: "Route Guidance",
@@ -244,7 +244,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "No instructions available.",
     vi: "Không có hướng dẫn nào."
   },
-  
+
   // Saved Plans
   createNewPlan: {
     en: "Create New Plan",
@@ -258,7 +258,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "total",
     vi: "tổng cộng"
   },
-  
+
   // Auth Modal
   createAccount: {
     en: "Create Account",
@@ -304,7 +304,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Please enter email and password",
     vi: "Vui lòng nhập email và mật khẩu"
   },
-  
+
   // Toast Messages
   pleaseLogin: {
     en: "Please login to save your trip plan",
@@ -382,7 +382,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Each destination must have at least one cost item",
     vi: "Mỗi điểm đến phải có ít nhất một khoản chi phí"
   },
-  
+
   // User Manual / Tutorial
   tutorialStep: {
     en: "Step",
@@ -404,7 +404,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Finish",
     vi: "Hoàn thành"
   },
-  
+
   // Tutorial Steps
   tutorial_welcome_title: {
     en: "Welcome to Intelligent Tour Planner!",
@@ -558,7 +558,7 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "You've learned all the features of Intelligent Tour Planner. Start creating your perfect trip now!",
     vi: "Bạn đã học tất cả các tính năng của Intelligent Tour Planner. Bắt đầu tạo chuyến đi hoàn hảo của bạn ngay bây giờ!"
   },
-  
+
   // Day View & All Days View
   enterDestinationName: {
     en: "Enter destination name (or click on map)",
@@ -603,4 +603,42 @@ export type Language = "en" | "vi";
 
 export function t(key: TranslationKey, lang: Language): string {
   return TRANSLATIONS[key][lang];
+}
+
+export const osrmTypeVi: Record<string, string> = {
+  turn: "Rẽ",
+  depart: "Rẽ",
+  arrive: "Rẽ",
+  merge: "Nhập vào làn đường",
+  "on ramp": "Vào đường nhánh",
+  "off ramp": "Ra khỏi đường nhánh",
+  fork: "Đi thẳng",
+  "end of road": "Cuối đường",
+  roundabout: "Vào vòng xoay",
+  "exit roundabout": "Ra khỏi vòng xoay",
+  continue: "Rồi",
+  rotary: "Vào vòng xoay",
+  "exit rotary": "Ra khỏi vòng xoay",
+  "roundabout turn": "Vào vòng xoay",
+  // ...add more as needed
+};
+
+export const osrmModifierVi: Record<string, string> = {
+  left: "theo hướng bên trái",
+  right: "theo hướng bên phải",
+  straight: "đi thẳng",
+  sharp: "gắt",
+  uturn: "quay đầu",
+  "slight right": "theo hướng phải",
+  "slight left": "theo hướng trái",
+  "sharp right": "theo hướng phải",
+  "sharp left": "theo hướng trái",
+  // ...add more as needed
+};
+
+export function getDirectionVi(type: string, modifier: string): string {
+  const typeVi = osrmTypeVi[type] || type;
+  const modifierVi = osrmModifierVi[modifier] || modifier;
+  if (modifierVi) return `${typeVi} ${modifierVi}`;
+  return typeVi;
 }

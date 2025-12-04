@@ -16,7 +16,7 @@ interface MapViewProps {
   viewMode: "single" | "all" | "route-guidance";
   selectedDayId: string;
   onRouteGuidance: (day: DayPlan, idx: number) => void;
-  onMapClick?: (data: { lat: number; lon: number; name: string; address: string }) => void;
+  onMapClick?: (data: { latitude: number; longitude: number; name: string; address: string }) => void;
   manualStepAction?: string | null;
   onManualActionComplete?: () => void;
   resetMapView?: boolean;
@@ -37,7 +37,7 @@ function MapClickHandler({ onClick }) {
   useMapEvent("click", async (e) => {
     const { lat, lng } = e.latlng;
     const { name, address } = await reverseGeocode(lat, lng);
-    onClick({ lat, lon: lng, name, address });
+    onClick({ latitude: lat, longitude: lng, name, address });
   });
   return null;
 }
@@ -54,7 +54,8 @@ export function MapView({
   onManualActionComplete,
   resetMapView,
   language,
-}: MapViewProps & { isExpanded?: boolean; userLocation?: { lat: number; lng: number } | null }) {
+}: MapViewProps & { isExpanded?: boolean; userLocation?: { latitude: number; longitude: number } | null }) {
+
   const lang = language.toLowerCase() as 'en' | 'vi';
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
 
@@ -88,7 +89,6 @@ export function MapView({
   };
 
   const destinations = getDestinations();
-
   const validDestinations = destinations.filter(
     d =>
       typeof d.latitude === "number" &&
@@ -117,7 +117,7 @@ export function MapView({
   // Determine map center
   const defaultCenter: [number, number] = [10.770048, 106.699707];
   const mapCenter: [number, number] = userLocation
-    ? [userLocation.lat, userLocation.lng]
+    ? [userLocation.latitude, userLocation.longitude]
     : defaultCenter;
 
   // Handle map resize on expansion change
@@ -233,7 +233,6 @@ export function MapView({
 
                       {selectedPairIndex === idx && (
                         <>
-                          {console.log("Index", idx)}
                           <Button
                             className="w-full bg-green-600 hover:bg-green-700 text-white"
                             onClick={() => onRouteGuidance(currentDay, idx)}
