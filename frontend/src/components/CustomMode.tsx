@@ -573,10 +573,16 @@ export function CustomMode({
                   const result = await fetchItinerary({ paragraph: preferences });
                   console.log("Itinerary from backend:", result);
 
-                  if (userLocation && Array.isArray(result.categories)) {
+                  if (
+                    userLocation &&
+                    Array.isArray(result.categories) &&
+                    (result.valid_starting_point === undefined || result.valid_starting_point === true)
+                  ) {
                     const allPlaces = await generatePlaces(result, userLocation);
                     console.log("Fetched places:", allPlaces);
                     setAllPlaces(allPlaces);
+                  } else if (result.valid_starting_point === false) {
+                    toast.error("Starting point must be Da Lat, Ho Chi Minh City, or Hue, Vietnam.");
                   }
 
                 } catch (err) {

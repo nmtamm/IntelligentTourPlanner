@@ -10,6 +10,10 @@ export async function fetchSerpLocalResults(query: string, ll: string) {
             }
         }
     );
+    if (!response.ok) {
+        console.error("API error:", response.status, await response.text());
+        return []; // Return empty array on error
+    }
     const data = await response.json();
     return data.local_results;
 }
@@ -45,6 +49,10 @@ export async function generatePlaces(result, userLocation) {
         const item = nonAdditionalItems[i];
         const count = i < remainder ? baseLimit + 1 : baseLimit;
         const places = await fetchSerpLocalResults(item.name, ll);
+        if (!Array.isArray(places)) {
+            console.error("places is not iterable", places);
+            continue; // Skip this iteration if places is not an array
+        }
         for (const place of places) {
             if (allPlaces.length < totalPlaces && !seenPlaceIDs.has(place.place_id)) {
                 allPlaces.push(place);
@@ -59,6 +67,11 @@ export async function generatePlaces(result, userLocation) {
     while (allPlaces.length < totalPlaces && additionalIndex < additionalItems.length) {
         const item = additionalItems[additionalIndex];
         const places = await fetchSerpLocalResults(item.name, ll);
+        if (!Array.isArray(places)) {
+            console.error("places is not iterable", places);
+            additionalIndex++;
+            continue;
+        }
         for (const place of places) {
             if (allPlaces.length < totalPlaces && !seenPlaceIDs.has(place.place_id)) {
                 allPlaces.push(place);

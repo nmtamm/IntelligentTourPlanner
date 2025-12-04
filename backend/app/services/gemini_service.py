@@ -26,6 +26,7 @@ class GeminiResult(BaseModel):
     trip_info: TripInfo
     starting_point: str = ""
     desired_destinations: list[str] = []
+    valid_starting_point: bool = True
     categories: list[CategoryItem] = []
 
 
@@ -54,11 +55,21 @@ def list_tourist_recommendations(
     - Any specific desired destinations if mentioned (e.g. city names, landmarks, attractions).
     - A desired starting point if mentioned.
 
+    **Validation requirement:**  
+    If the starting point is not one of the following cities (accepting all common spellings, abbreviations, and Vietnamese tone/case variations): 
+    - "Ho Chi Minh City", "HCMC", "Saigon", "Thành phố Hồ Chí Minh", "TP.HCM"
+    - "Da Lat", "Dalat", "Đà Lạt", "đà lạt", "Đà lạt"
+    - "Hue", "Huế", "huế"
+    (with or without ', Vietnam'), set a field `valid_starting_point` to `false` and do not generate any plan.  
+    Otherwise, set `valid_starting_point` to `true` and always format the starting point as '<city>, Vietnam'.
+
     Return the result using this schema:
     - trip_info: object with trip_name (str), start_day (str), end_day (str), num_people (int)
     - starting_point: str
     - desired_destinations: list of str
+    - valid_starting_point: bool
     - categories: list of objects with name (str) and additional (bool)
+
 
     Paragraph:
     {paragraph}
@@ -75,6 +86,10 @@ def list_tourist_recommendations(
 
         # Parse the response as a list of IDs
         result = GeminiResult.model_validate_json(response.text)
+        result_dict = json.loads(response.text)
+        if not result_dict.get("valid_starting_point", True):
+            print(f"Starting point is invalid: {result.starting_point}")
+            return {"error": "Invalid starting point"}
         return result
     except Exception as e:
         return {"error": str(e)}
