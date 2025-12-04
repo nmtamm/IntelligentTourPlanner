@@ -31,7 +31,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "./ui/popover";
-import { format, addDays, differenceInDays } from "date-fns";
+import { format, addDays, differenceInDays, set } from "date-fns";
 import { createTrip, updateTrip } from '../api.js';
 import { getOptimizedRoute } from "../utils/geocode";
 import { fetchItinerary } from "../utils/gemini";
@@ -40,6 +40,8 @@ import { convertCurrency, convertAllDays } from "../utils/exchangerate";
 import { generatePlaces } from "../utils/serp";
 import { geocodeDestination } from "../utils/geocode";
 import { makeDestinationFromGeo } from "../utils/destinationFactory";
+import { t } from "../utils/translations";
+import { ErrorNotification } from "./ErrorNotification";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -74,6 +76,7 @@ export function CustomMode({
   resetToDefault,
   showAllDaysOnLoad,
 }: CustomModeProps) {
+  const lang = language.toLowerCase() as 'en' | 'vi';
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [selectedDay, setSelectedDay] = useState<string>("1");
   const [routeGuidancePair, setRouteGuidancePair] = useState<[Destination, Destination] | null>(null);
@@ -90,6 +93,7 @@ export function CustomMode({
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [routeSegmentIndex, setRouteSegmentIndex] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [convertedDays, setConvertedDays] = useState(localTripData.days);
 
@@ -136,11 +140,6 @@ export function CustomMode({
       const daysDifference =
         differenceInDays(endDate, startDate) + 1;
 
-      if (daysDifference < 1) {
-        toast.error("End Date must be on or after Start Date");
-        return;
-      }
-
       if (daysDifference !== localTripData.days.length) {
         const newDays: DayPlan[] = [];
 
@@ -167,7 +166,7 @@ export function CustomMode({
           days: newDays,
         });
         toast.success(
-          `Trip adjusted to ${daysDifference} day${daysDifference > 1 ? "s" : ""}`,
+          `${t('tripAdjusted', lang)} ${daysDifference} ${daysDifference > 1 ? t('days', lang) : t('day', lang)}`,
         );
       }
       setIsDateUserInput(false);
@@ -284,9 +283,8 @@ export function CustomMode({
 
   const removeDay = (dayId: string) => {
     if (localTripData.days.length === 1) {
-      toast.error(
-        "You must have at least one day in your trip",
-      );
+      toast.error(t('mustHaveOneDay', lang));
+      setError(t('mustHaveOneDay', lang));
       return;
     }
     const newDays = localTripData.days
@@ -300,7 +298,7 @@ export function CustomMode({
     if (selectedDay === dayId) {
       setSelectedDay(newDays[0].id);
     }
-    toast.success("Day removed");
+    toast.success(t('dayRemoved', lang));
   };
 
   const updateDay = (dayId: string, updatedDay: DayPlan) => {
@@ -347,7 +345,7 @@ export function CustomMode({
         })),
       };
       updateDay(selectedDay, updatedDay);
-      toast.success("Costs estimated for current day");
+      toast.success(t('costsEstimatedCurrentDay', lang));
     } else {
       // Estimate for all days
       const updatedDays = localTripData.days.map((day) => ({
@@ -371,19 +369,21 @@ export function CustomMode({
         ...localTripData,
         days: updatedDays,
       });
-      toast.success("Costs estimated for all days");
+      toast.success(t('costsEstimatedAllDays', lang));
     }
     setIsEstimating(false);
   };
 
   const findOptimalRoute = async () => {
     const day = localTripData.days.find((d) => d.id === selectedDay);
-    if (!day || day.destinations.length < 2) {
-      toast.error("Add at least 2 destinations to optimize route");
+    if (!day || day.destinations.length < 1) {
+      toast.error(t('addDestinationsFirst', lang));
+      setError(t('addDestinationsFirst', lang));
       return;
     }
 
     setIsOptimizing(true);
+    toast.success(t('optimizingRoute', lang));
 
     // Convert to backend format
     const backendDestinations = [
@@ -404,6 +404,7 @@ export function CustomMode({
     const optimized = await getOptimizedRoute(backendDestinations);
     if (!optimized || !Array.isArray(optimized.optimized_route)) {
       toast.error("Failed to optimize route");
+      setError(t('routeOptimizationFailed', lang));
       return;
     }
 
@@ -430,26 +431,29 @@ export function CustomMode({
       routeInstructions: optimized.instructions,
       routeSegmentGeometries: optimized.segment_geometries,
     });
-    toast.success("Route optimized!");
+    toast.success(t('routeOptimized', lang));
     setIsOptimizing(false);
   };
 
   const savePlan = async () => {
     if (!localTripData.name.trim()) {
-      toast.error('Please enter a trip name');
+      toast.error(t('pleaseEnterTripName', lang));
+      setError(t('pleaseEnterTripName', lang));
       return;
     }
 
     setIsSaving(true);
 
     if (!isLoggedIn) {
-      toast.error('Please login to save your trip plan');
+      toast.error(t('pleaseLogin', lang));
+      setError(t('pleaseLogin', lang));
       return;
     }
 
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Authentication token not found. Please login again.');
+      toast.error(t('authenticationNotFound', lang));
+      setError(t('authenticationNotFound', lang));
       return;
     }
 
@@ -483,13 +487,13 @@ export function CustomMode({
         // Update existing plan
         const updated = await updateTrip(planId, tripDataForAPI, token);
         setHasUnsavedChanges(false);
-        toast.success('Trip plan updated successfully!');
+        toast.success(t('planUpdated', lang));
         console.log('Updated trip:', updated);
       } else {
         // Create new plan
         const created = await createTrip(tripDataForAPI, token);
         setHasUnsavedChanges(false);
-        toast.success('Trip plan saved successfully!');
+        toast.success(t('planSaved', lang));
         console.log('Created trip:', created);
         // Update planId so subsequent saves will update instead of create
         // Note: You might want to pass this back to parent component
@@ -498,9 +502,11 @@ export function CustomMode({
       const err = error as any;
       console.error('Error saving trip:', err);
       if (err.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
+        toast.error(t('sessionExpired', lang));
+        setError(t('sessionExpired', lang));
       } else {
-        toast.error('Failed to save trip plan. Please try again.');
+        toast.error(t('planSaveFailed', lang));
+        setError(t('planSaveFailed', lang));
       }
     }
 
@@ -523,6 +529,7 @@ export function CustomMode({
         onBack={() => {
           setViewMode("single");
         }}
+        language={language}
       />
     );
   }
@@ -535,10 +542,10 @@ export function CustomMode({
         <div className="space-y-6">
           <div className="text-center mb-8">
             <h2 className="text-[#004DB6] mb-2 font-bold">
-              Generate Your Perfect Trip
+              {t('generateYourPerfectTrip', lang)}
             </h2>
             <p className="text-gray-600 not-italic font-normal">
-              Let AI create an optimized itinerary for you
+              {t('aiOptimizedItinerary', lang)}
             </p>
           </div>
 
@@ -546,12 +553,7 @@ export function CustomMode({
             <Textarea
               value={preferences}
               onChange={(e) => setPreferences(e.target.value)}
-              placeholder="Tell us about your dream trip and your travel constraints so we can plan it perfectly for you!
-You can mention some details below to help us design a better plan for you:
-      🌍 Where would you like to go?
-      🗓️ How long will your trip be?
-      💰 What's your budget?
-      👥 How many people are traveling?"
+              placeholder={t('tripPreferencesPlaceholder', lang)}
               rows={6}
               className="resize-none pr-14"
             />
@@ -559,15 +561,12 @@ You can mention some details below to help us design a better plan for you:
             <Button
               onClick={async () => {
                 if (!preferences.trim()) {
-                  toast.error(
-                    "Please tell us about your trip preferences first!",
-                  );
+                  toast.error(t('tripPreferencesRequired', lang));
+                  setError(t('tripPreferencesRequired', lang));
                   return;
                 }
                 setIsGenerating(true);
-                toast.success(
-                  "Generating your perfect trip plan...",
-                );
+                toast.success(t('generatingTrip', lang));
                 // AI generation logic will go here
                 try {
                   // Send the whole preferences text as 'paragraph'
@@ -582,7 +581,8 @@ You can mention some details below to help us design a better plan for you:
 
                 } catch (err) {
                   console.error("Failed to fetch itinerary:", err);
-                  toast.error("Failed to generate trip plan.");
+                  toast.error(t('generateFailed', lang));
+                  setError(t('generateFailed', lang));
                 }
                 setIsGenerating(false);
               }}
@@ -593,12 +593,12 @@ You can mention some details below to help us design a better plan for you:
               {isGenerating ? (
                 <>
                   <Loader2 className="w-2 h-2 mr-1 animate-spin" />
-                  Generating...
+                  {t('waiting', lang)}...
                 </>
               ) : (
                 <>
                   <Sparkles className="w-2 h-2 mr-1" />
-                  Generate
+                  {t('generate', lang)}
                 </>
               )}
             </Button>
@@ -614,7 +614,7 @@ You can mention some details below to help us design a better plan for you:
             <Input
               value={localTripData.name}
               onChange={(e) => updateTripName(e.target.value)}
-              placeholder="Enter trip name..."
+              placeholder={t('enterTripName', lang)}
               className="w-full"
               data-tutorial="trip-name"
             />
@@ -634,7 +634,7 @@ You can mention some details below to help us design a better plan for you:
                   setMembers(String(value));
                 }
               }}
-              placeholder="Number of members"
+              placeholder={t('numberOfMembers', lang)}
               min="1"
               max="20"
               data-tutorial="members"
@@ -654,7 +654,7 @@ You can mention some details below to help us design a better plan for you:
                     {startDate ? (
                       format(startDate, "PPP")
                     ) : (
-                      <span>Start Date</span>
+                      <span>{t('startDate', lang)}</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -714,7 +714,7 @@ You can mention some details below to help us design a better plan for you:
                     {endDate ? (
                       format(endDate, "PPP")
                     ) : (
-                      <span>End Date</span>
+                      <span>{t('endDate', lang)}</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -782,7 +782,7 @@ You can mention some details below to help us design a better plan for you:
                   }}
                   className="relative pr-8 shrink-0 text-center"
                 >
-                  Day {day.dayNumber}
+                  {t('day', lang)} {day.dayNumber}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -802,7 +802,7 @@ You can mention some details below to help us design a better plan for you:
               className="shrink-0"
             >
               <Plus className="w-4 h-4 mr-1" />
-              Add Day
+              {t('addDay', lang)}
             </Button>
             <Button
               variant={
@@ -814,7 +814,7 @@ You can mention some details below to help us design a better plan for you:
               data-tutorial="view-all-days"
             >
               <Eye className="w-4 h-4 mr-1" />
-              View All Days
+              {t('viewAllDays', lang)}
             </Button>
           </div>
         </div>
@@ -831,15 +831,14 @@ You can mention some details below to help us design a better plan for you:
             {isEstimating ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Estimating...
+                {t('estimating', lang)}...
               </>
             ) : (
               <>
                 <Calculator className="w-4 h-4 mr-2" />
-                Auto-Estimate Costs{" "}
-                {viewMode === "all"
-                  ? "(All Days)"
-                  : "(Current Day)"}
+                  {viewMode === "all"
+                    ? t('autoEstimateAllDays', lang)
+                    : t('autoEstimateCurrentDay', lang)}
               </>
             )}
           </Button>
@@ -855,12 +854,12 @@ You can mention some details below to help us design a better plan for you:
               {isOptimizing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Optimizing...
+                  {t('optimizing', lang)}...
                 </>
               ) : (
                 <>
                   <Waypoints className="w-4 h-4 mr-2" />
-                  Find Optimal Route
+                  {t('findOptimalRoute', lang)}
                 </>
               )}
             </Button>
@@ -875,17 +874,17 @@ You can mention some details below to help us design a better plan for you:
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
+                  {t('saving', lang)}...
                 </>
               ) : hasUnsavedChanges ? (
                 <>
                   <Save className="w-4 h-4 mr-2" />
-                  Save Plan
+                  {t('savePlan', lang)}
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4 mr-2" />
-                  Saved!
+                  {t('saved', lang)}
                 </>
               )}
             </Button>
@@ -910,6 +909,7 @@ You can mention some details below to help us design a better plan for you:
                 pendingDestination={pendingDestination}
                 setPendingDestination={setPendingDestination}
                 generatedPlaces={allPlaces}
+                language={language}
               />
             ) : (
               <AllDaysView
@@ -922,6 +922,7 @@ You can mention some details below to help us design a better plan for you:
                 }
                 currency={currency}
                 onCurrencyToggle={onCurrencyToggle}
+                language={language}
               />
             )}
           </div>
@@ -955,9 +956,19 @@ You can mention some details below to help us design a better plan for you:
               setPendingDestination(data);
             }}
             resetMapView={resetToDefault}
+            language={language}
           />
         </div>
       </div>
+
+      {/* Error Notification */}
+      {error && (
+        <ErrorNotification
+          message={error}
+          onClose={() => setError(null)}
+        />
+      )}
+
     </div>
   );
 }

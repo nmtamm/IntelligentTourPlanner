@@ -2,15 +2,19 @@ import { Card } from './ui/card';
 import { DayPlan } from '../types';
 import { Button } from './ui/button';
 import { parseAmount } from '../utils/parseAmount';
+import { t } from '../utils/translations';
+
 interface AllDaysViewProps {
   days: DayPlan[];
   onUpdate: (days: DayPlan[]) => void;
   currency: 'USD' | 'VND';
   onCurrencyToggle: () => void;
+  language: 'EN' | 'VI';
 }
 
-export function AllDaysView({ days, currency, onCurrencyToggle }: AllDaysViewProps) {
-  const currencySymbol = currency === 'USD' ? '$' : '₫';
+export function AllDaysView({ days, currency, onCurrencyToggle, language }: AllDaysViewProps) {
+  const lang = language.toLowerCase() as 'en' | 'vi';
+  const currencySymbol = currency === 'USD' ? 'USD' : 'VND';
 
   const calculateDayTotal = (day: DayPlan) => {
     let minTotal = 0, maxTotal = 0, isApprox = false;
@@ -42,13 +46,13 @@ export function AllDaysView({ days, currency, onCurrencyToggle }: AllDaysViewPro
     <div className="space-y-4">
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[#004DB6]">All Days Overview</h2>
+          <h2 className="text-[#004DB6]">{t('allDaysOverview', lang)}</h2>
           <Button
             variant="outline"
             size="sm"
             onClick={onCurrencyToggle}
           >
-            {currencySymbol === '$' ? '$ USD' : '₫ VND'}
+            {currencySymbol === 'USD' ? 'USD' : 'VND'}
           </Button>
         </div>
 
@@ -59,18 +63,18 @@ export function AllDaysView({ days, currency, onCurrencyToggle }: AllDaysViewPro
             return (
               <div key={day.id} className="border rounded-lg p-4 bg-white">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-gray-900">Day {day.dayNumber}</h3>
+                  <h3 className="text-gray-900">{t('day', lang)} {day.dayNumber}</h3>
                   <span className="text-[#004DB6]">
-                    {currencySymbol}
                     {dayTotal.isApprox
                       ? `${dayTotal.minTotal.toLocaleString()} - ${dayTotal.maxTotal.toLocaleString()}`
                       : dayTotal.minTotal.toLocaleString()}
+                    {' '}{currencySymbol}
                   </span>
                 </div>
 
                 <div className="space-y-2">
                   {day.destinations.length === 0 ? (
-                    <p className="text-gray-400 text-sm italic">No destinations</p>
+                    <p className="text-gray-400 text-sm italic">{t('noDestinationsYet', lang)}</p>
                   ) : (
                     day.destinations.map((dest) => {
                       // Calculate destination total using parseAmount
@@ -92,21 +96,21 @@ export function AllDaysView({ days, currency, onCurrencyToggle }: AllDaysViewPro
                                 return (
                                   <div key={cost.id}>
                                     {cost.detail && `${cost.detail}: `}
-                                    {currencySymbol}
                                     {parsed.isApprox
                                       ? `${parsed.min.toLocaleString()} - ${parsed.max.toLocaleString()}`
                                       : parsed.min.toLocaleString()}
                                     {idx < dest.costs.length - 1 && ', '}
+                                    {' '}{currencySymbol}
                                   </div>
                                 );
                               })}
                             </div>
                           </div>
                           <span className="text-gray-600 ml-2">
-                            {currencySymbol}
                             {isApprox
                               ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
                               : minTotal.toLocaleString()}
+                            {' '}{currencySymbol}
                           </span>
                         </div>
                       );
@@ -121,12 +125,12 @@ export function AllDaysView({ days, currency, onCurrencyToggle }: AllDaysViewPro
         {/* Grand Total */}
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-center justify-between bg-[#DAF9D8] rounded-lg p-4">
-            <span className="text-[#004DB6]">Grand Total ({days.length} days):</span>
+            <span className="text-[#004DB6]">{t('tripTotal', lang)} ({days.length} {days.length === 1 ? t('day', lang) : t('days', lang)}):</span>
             <span className="text-[#004DB6]">
-              {currencySymbol}
               {grandTotal.isApprox
                 ? `${grandTotal.minTotal.toLocaleString()} - ${grandTotal.maxTotal.toLocaleString()}`
                 : grandTotal.minTotal.toLocaleString()}
+              {' '}{currencySymbol}
             </span>
           </div>
         </div>

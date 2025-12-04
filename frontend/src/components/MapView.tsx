@@ -9,6 +9,7 @@ import polyline from '@mapbox/polyline';
 import { reverseGeocode } from "../utils/reverseGeocode";
 import { parseAmount } from "../utils/parseAmount";
 import { toast } from "sonner";
+import { t } from '../utils/translations';
 
 interface MapViewProps {
   days: DayPlan[];
@@ -19,6 +20,7 @@ interface MapViewProps {
   manualStepAction?: string | null;
   onManualActionComplete?: () => void;
   resetMapView?: boolean;
+  language: 'EN' | 'VI';
 }
 
 function FitBounds({ bounds }) {
@@ -51,8 +53,9 @@ export function MapView({
   manualStepAction,
   onManualActionComplete,
   resetMapView,
+  language,
 }: MapViewProps & { isExpanded?: boolean; userLocation?: { lat: number; lng: number } | null }) {
-
+  const lang = language.toLowerCase() as 'en' | 'vi';
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
 
   const currentDay = days.find((d) => d.id === selectedDayId);
@@ -185,12 +188,12 @@ export function MapView({
             {mapListView === "map" ? (
               <>
                 <Map className="w-4 h-4 mr-2" />
-                Map View
+                {t('mapView', lang)}
               </>
             ) : (
               <>
                 <List className="w-4 h-4 mr-2" />
-                Route List
+                {t('routeList', lang)}
               </>
             )}
           </Button>
@@ -201,7 +204,7 @@ export function MapView({
           <div className="space-y-3">
             <div className="bg-[#DAF9D8] rounded-lg p-4 max-h-[600px] overflow-y-auto">
               <p className="text-sm text-[#004DB6] mb-3">
-                Click on a route segment to navigate:
+                {t('clickToNavigate', lang)}
               </p>
               <div className="space-y-2">
                 {currentDay.optimizedRoute.slice(0, -1).map((from, idx) => {
@@ -238,7 +241,7 @@ export function MapView({
                           >
 
                             <Navigation className="w-4 h-4 mr-2" />
-                            Go - Start Navigation
+                            {t('goStartNavigation', lang)}
                           </Button>
                         </>
                       )}
@@ -248,8 +251,7 @@ export function MapView({
               </div>
             </div>
             <div className="text-sm text-gray-600 text-center">
-              {currentDay.optimizedRoute.length - 1} route segment
-              {currentDay.optimizedRoute.length - 1 !== 1 ? "s" : ""}
+              {currentDay.optimizedRoute.length - 1} {currentDay.optimizedRoute.length - 1 !== 1 ? t('routeSegments', lang) : t('routeSegment', lang)}
             </div>
           </div>
         )}
@@ -352,12 +354,11 @@ export function MapView({
             {/* Map Info */}
             <div className="text-sm text-gray-600 flex items-center justify-between">
               <span>
-                {destinations.length} destination
-                {destinations.length !== 1 ? "s" : ""}
+                {destinations.length} {destinations.length !== 1 ? t('destinations', lang) : t('destination', lang)}
               </span>
               {viewMode === "all" && (
                 <span className="text-[#004DB6]">
-                  Showing all days
+                  {t('showingAllDays', lang)}
                 </span>
               )}
             </div>

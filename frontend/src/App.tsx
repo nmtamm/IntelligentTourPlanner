@@ -16,6 +16,7 @@ import {
 import { DayPlan } from "./types";
 import { checkGPS, sendLocationToBackend } from "./utils/geolocation";
 import { fetchFoursquarePlaces } from "./utils/foursquare";
+import { t } from "./utils/translations";
 
 type Currency = "USD" | "VND";
 type Language = "EN" | "VI";
@@ -41,6 +42,8 @@ export default function App() {
   const [manualStepAction, setManualStepAction] = useState<string | null>(null);
   const [resetViewsToDefault, setResetViewsToDefault] = useState(false);
   const [showAllDaysOnLoad, setShowAllDaysOnLoad] = useState(false);
+
+  const lang = language.toLowerCase() as 'en' | 'vi';
 
   // => I put this in GpsGate.tsx now
   // useEffect(() => {
@@ -163,7 +166,7 @@ export default function App() {
                   }
                   data-tutorial="currency"
                 >
-                  {currency === "USD" ? "$ USD" : "₫ VND"}
+                  {currency === "USD" ? "USD" : "VND"}
                 </Button>
 
                 {/* Language Switcher */}
@@ -187,7 +190,7 @@ export default function App() {
                   className="border-[#70C573] text-[#004DB6] hover:bg-[#DAF9D8]"
                 >
                   <HelpCircle className="w-4 h-4 mr-2" />
-                  User Manual
+                  {t("userManual", lang)}
                 </Button>
 
                 {isLoggedIn ? (
@@ -203,8 +206,8 @@ export default function App() {
                       }
                     >
                       {showSavedPlans
-                        ? "Custom Mode"
-                        : "My Plans"}
+                        ? t("customMode", lang)
+                        : t("myPlans", lang)}
                     </Button>
                     <Button
                       variant="outline"
@@ -212,7 +215,7 @@ export default function App() {
                       onClick={handleLogout}
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      Logout
+                      {t("logout", lang)}
                     </Button>
                   </>
                 ) : (
@@ -224,7 +227,7 @@ export default function App() {
                       data-tutorial="login"
                     >
                       <LogIn className="w-4 h-4 mr-2" />
-                      Login
+                      {t("login", lang)}
                     </Button>
                   </>
                 )}
@@ -242,6 +245,7 @@ export default function App() {
               onLoadPlan={handleLoadPlan}
               onCreateNew={handleCreateNewPlan}
               currency={currency}
+              language={language}
             />
           ) : (
             <CustomMode
@@ -281,6 +285,7 @@ export default function App() {
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
           onLogin={handleLogin}
+          language={language}
         />
 
         {/* User Manual */}
@@ -288,6 +293,7 @@ export default function App() {
           isOpen={isUserManualOpen}
           onClose={handleCloseUserManual}
           onAutoAction={(stepId) => setManualStepAction(stepId)}
+          language={language}
         />
       </div>
     </GpsGate>

@@ -5,11 +5,13 @@ import { DayPlan, Destination } from '../types';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import polyline from '@mapbox/polyline';
 import React from 'react';
+import { t } from '../utils/translations';
 
 interface RouteGuidanceProps {
   day: DayPlan;
   segmentIndex: number;
   onBack: () => void;
+  language: 'EN' | 'VI';
 }
 
 function FitBounds({ bounds }) {
@@ -22,10 +24,11 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps) {
+export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuidanceProps) {
 
   console.log("Segment index:", segmentIndex);
 
+  const lang = language.toLowerCase() as 'en' | 'vi';
   const from = day.optimizedRoute[segmentIndex];
   const to = day.optimizedRoute[segmentIndex + 1];
   const instructions = day.routeInstructions?.[segmentIndex] ?? [];
@@ -67,7 +70,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Map
+          {t('closeGuidance', lang)}
         </Button>
       </div>
 
@@ -77,7 +80,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
           <div className="space-y-6">
             <h2 className="text-[#004DB6] flex items-center gap-2">
               <Navigation className="w-6 h-6" />
-              Route Guidance
+              {t('routeGuidance', lang)}
             </h2>
 
             {/* From/To */}
@@ -114,7 +117,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
                   <Route className="w-4 h-4" />
-                  <span className="text-sm">Distance:</span>
+                  <span className="text-sm">{t('distance', lang)}:</span>
                   <p className="text-[#004DB6]">{distance.toFixed(2)} km</p>
                 </div>
 
@@ -122,7 +125,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
                   <Clock className="w-4 h-4" />
-                  <span className="text-sm">Est. Time: </span>
+                  <span className="text-sm">{t('estimatedTime', lang)}</span>
                   <p className="text-[#004DB6]">{Math.ceil(estimatedTime)} min</p>
                 </div>
               </div>
@@ -130,7 +133,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
 
             {/* Directions */}
             <div className="space-y-3">
-              <h3 className="text-gray-900">Turn-by-turn Directions</h3>
+              <h3 className="text-gray-900">{t('turnByTurnDirections', lang)}</h3>
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {instructions.length > 0 ? (
                   <div className="mb-4">
@@ -148,7 +151,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
                     ))}
                   </div>
                 ) : (
-                  <div className="text-gray-500">No instructions available.</div>
+                  <div className="text-gray-500">{t('noInstructions', lang)}</div>
                 )}
               </div>
             </div>
@@ -158,7 +161,7 @@ export function RouteGuidance({ day, segmentIndex, onBack }: RouteGuidanceProps)
         {/* GPS Map Visualization */}
         <Card className="p-6 lg:col-span-2">
           <div className="flex flex-col h-full space-y-4">
-            <h3 className="text-gray-900">GPS Navigation</h3>
+            <h3 className="text-gray-900">{t('gpsNavigation', lang)}</h3>
 
             <div className="bg-gray-50 rounded-lg overflow-hidden border flex-1 relative">
               <MapContainer

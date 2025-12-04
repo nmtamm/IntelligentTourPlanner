@@ -7,6 +7,9 @@ import { DayPlan, Destination } from '../types';
 import { getTrips, deleteTrip } from '../api.js';
 import { convertAllTrips } from '../utils/exchangerate';
 import { parseAmount } from '../utils/parseAmount';
+import { t } from '../utils/translations';
+import { ErrorNotification } from "./ErrorNotification";
+
 
 interface SavedPlansProps {
   currentUser: string;
@@ -14,12 +17,15 @@ interface SavedPlansProps {
   onLoadPlan: (plan: { id: string; name: string; days: DayPlan[] }) => void;
   onCreateNew: () => void;
   currency: string;
+  language: 'EN' | 'VI';
 }
 
-export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, currency }: SavedPlansProps) {
+export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, currency, language }: SavedPlansProps) {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const currencySymbol = currency === 'USD' ? '$' : '₫';
+  const currencySymbol = currency === 'USD' ? 'USD' : 'VND';
+  const lang = language.toLowerCase() as 'en' | 'vi';
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPlans();
@@ -28,7 +34,8 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
   const loadPlans = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Please login to view your saved plans');
+      toast.error(t('loginToViewPlans', lang));
+      setError(t('loginToViewPlans', lang));
       return;
     }
 
@@ -70,9 +77,11 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
       const err = error as any;
       console.error('Error loading trips:', err);
       if (err.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
+        toast.error(t('sessionExpired', lang));
+        setError(t('sessionExpired', lang));
       } else {
-        toast.error('Failed to load trips. Please try again.');
+        toast.error(t('loadTripsFailed', lang));
+        setError(t('loadTripsFailed', lang));
       }
     } finally {
       setLoading(false);
@@ -84,7 +93,8 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
 
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Please login to delete plans');
+      toast.error(t('loginToDeletePlans', lang));
+      setError(t('loginToDeletePlans', lang));
       return;
     }
 
@@ -94,7 +104,8 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
       toast.success('Plan deleted successfully!');
     } catch (error) {
       console.error('Error deleting trip:', error);
-      toast.error('Failed to delete plan. Please try again.');
+      toast.error(t('planDeletedFailed', lang));
+      setError(t('planDeletedFailed', lang));
     }
   };
 
@@ -104,13 +115,13 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+            {t('back', lang)}
           </Button>
           <h2 className="text-gray-900">My Saved Plans</h2>
         </div>
         <Button onClick={onCreateNew} className="bg-[#004DB6] hover:bg-[#003d8f]">
           <Plus className="w-4 h-4 mr-2" />
-          Create New Plan
+          {t('createNewPlan', lang)}
         </Button>
       </div>
 
@@ -121,7 +132,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
         </Card>
       ) : plans.length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-gray-500">No saved plans yet. Create your first trip plan!</p>
+          <p className="text-gray-500">{t('noSavedPlans', lang)}</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -162,11 +173,11 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-4 h-4" />
-                    {plan.days.length} {plan.days.length === 1 ? 'day' : 'days'}
+                    {plan.days.length} {plan.days.length === 1 ? t('day', lang) : t('days', lang)}
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <MapPin className="w-4 h-4" />
-                    {totalDestinations} destinations
+                    {totalDestinations} {t('destinations', lang)}
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Wallet className="w-4 h-4" />
@@ -174,7 +185,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
                     {isApprox
                       ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
                       : minTotal.toLocaleString()
-                    } total
+                    } {t('total', lang)}
                   </div>
                 </div>
 
@@ -186,6 +197,15 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
           })}
         </div>
       )}
+
+      {/* Error Notification */}
+      {error && (
+        <ErrorNotification
+          message={error}
+          onClose={() => setError(null)}
+        />
+      )}
+
     </div>
   );
 }
