@@ -1,8 +1,8 @@
 import { Destination } from "../types";
 
 export type GeoPoint = {
-  lat: number;
-  lng: number;
+  latitude: number;
+  longitude: number;
   address?: string;
   name?: string;
 };
@@ -21,9 +21,7 @@ export function makeDestinationFromGeo(geo: any, name: string, currency: 'USD' |
         originalCurrency: currency,
       }
     ],
-    latitude: geo.lat,
-    longitude: geo.lng,
-    lat: geo.lat,
-    lng: geo.lng,
+    latitude: geo.latitude,
+    longitude: geo.longitude,
   };
 }

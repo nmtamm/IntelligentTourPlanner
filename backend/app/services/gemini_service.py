@@ -88,7 +88,6 @@ def list_tourist_recommendations(
         result = GeminiResult.model_validate_json(response.text)
         result_dict = json.loads(response.text)
         if not result_dict.get("valid_starting_point", True):
-            print(f"Starting point is invalid: {result.starting_point}")
             return {"error": "Invalid starting point"}
         return result
     except Exception as e:

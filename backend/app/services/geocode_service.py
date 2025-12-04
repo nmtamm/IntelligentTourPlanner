@@ -62,8 +62,6 @@ def route_osrm(points):
             ordered_indices = waypoint_order
 
         optimized_points = [points[i] for i in ordered_indices]
-        for i in range(len(optimized_points)):
-            print(f"Point {i}: {optimized_points[i]}")
 
         segment_geometries = []
         for leg in data["trips"][0]["legs"]:
@@ -95,9 +93,6 @@ def route_osrm(points):
                     }
                 )
             instructions.append(leg_instructions)
-
-        for i, geom in enumerate(segment_geometries):
-            print(f"Segment {i} geometry: {geom}")
 
         return {
             "success": True,

@@ -80,9 +80,19 @@ export function MapView({
   const getDestinations = () => {
     if (viewMode === "single") {
       const day = days.find((d) => d.id === selectedDayId);
-      return day?.optimizedRoute.length
-        ? day.optimizedRoute
-        : day?.destinations || [];
+      if (day?.optimizedRoute.length) {
+        // Show all destinations, including user location if present
+        return day.optimizedRoute;
+      }
+      // Exclude user location from display if present
+      return (day?.destinations || [])
+        .filter(dest =>
+          !(
+            userLocation &&
+            dest.latitude === userLocation.latitude &&
+            dest.longitude === userLocation.longitude
+          )
+        );
     } else {
       return days.flatMap((d) => d.destinations);
     }

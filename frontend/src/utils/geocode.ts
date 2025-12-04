@@ -15,7 +15,7 @@ export async function geocodeDestination(name: string): Promise<{ latitude: numb
     }
 }
 
-export async function getOptimizedRoute(destinations: { latitude: number; longitude: number; name: string; }[]): Promise<any> {
+export async function getOptimizedRoute(destinations: { lat: number; lon: number; name: string; }[]): Promise<any> {
     try {
         const response = await fetch(`${API_HOST}/api/route/optimize`, {
             method: 'POST',

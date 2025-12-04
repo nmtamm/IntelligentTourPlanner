@@ -389,30 +389,30 @@ export function CustomMode({
     const backendDestinations = [
       userLocation
         ? {
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
+          lat: userLocation.latitude,
+          lon: userLocation.longitude,
           name: "User Location",
         }
         : null,
       ...day.destinations.map(d => ({
-        latitude: d.latitude,
-        longitude: d.longitude,
+        lat: d.latitude,
+        lon: d.longitude,
         name: d.name,
       })),
-    ].filter(Boolean) as { latitude: number; longitude: number; name: string }[];
+    ].filter(Boolean) as { lat: number; lon: number; name: string }[];
 
     const optimized = await getOptimizedRoute(backendDestinations);
-    if (!optimized || !Array.isArray(optimized.optimized_route)) {
+    if (!optimized || !optimized.success || !Array.isArray(optimized.optimized_route)) {
       toast.error("Failed to optimize route");
       setError(t('routeOptimizationFailed', lang));
+      setIsOptimizing(false);
       return;
     }
 
-    // Convert lon to lng for frontend usage
-    const optimizedRoute = optimized.optimized_route.map((dest) => {
-      const latitude = dest.latitude;
-      const longitude = dest.longitude;
 
+    const optimizedRoute = optimized.optimized_route.map((dest) => {
+      const latitude = dest.latitude ?? dest.lat;
+      const longitude = dest.longitude ?? dest.lon;
       return {
         ...dest,
         latitude,
