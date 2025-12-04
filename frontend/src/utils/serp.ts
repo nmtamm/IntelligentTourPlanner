@@ -1,5 +1,6 @@
 import { geocodeDestination } from "./geocode";
 import { API_HOST } from './config';
+import { fetchTouristCategories } from "./categories";
 
 export async function fetchSerpLocalResults(query: string, ll: string) {
     const response = await fetch(
@@ -88,4 +89,41 @@ export async function generatePlaces(result, userLocation) {
         allPlaces = allPlaces.slice(0, totalPlaces);
     }
     return allPlaces;
+}
+
+export async function fetchPlacesData() {
+    const result = await fetchTouristCategories();
+    console.log("Fetched Categories:", result);
+
+    const geo = await geocodeDestination("Hue, Vietnam");
+    let ll: string;
+    if (geo && geo.latitude && geo.longitude) {
+        ll = `@${geo.latitude},${geo.longitude},15.1z`;
+    }
+    else ll = "";
+
+    const allPlaces: any[] = [];
+    for (const category of result) {
+        const places = await fetchSerpLocalResults(category, ll);
+        console.log(`Category: ${category}, Places Found: ${places.length}`);
+        allPlaces.push(...places);
+    }
+
+    console.log(`Total Places Fetched: ${allPlaces.length}`);
+    return allPlaces;
+}
+
+export async function savePlacesToBackend(allPlaces: any[]) {
+    console.log("Sending places to backend:", allPlaces);
+    const response = await fetch(`${API_HOST}/api/places/save`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ places: allPlaces })
+    });
+    if (!response.ok) {
+        throw new Error('Failed to save places');
+    }
+    return await response.json();
 }

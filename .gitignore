@@ -33,6 +33,13 @@ pip-delete-this-directory.txt
 # Database
 test.db
 *.db
+!test.db
+!test1.db
+!test2.db
+!test2_cleaned.db
+!test3.db
+!test4.db
+!test5.db
 *.sqlite
 *.sqlite3
 
