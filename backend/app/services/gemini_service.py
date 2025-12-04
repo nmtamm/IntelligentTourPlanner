@@ -52,8 +52,15 @@ def list_tourist_recommendations(
         - For each match, return the corresponding "name" and set "additional": false.
         - If fewer than 10 names are found, select additional names from the same categories as those already matched, until you have 10 in total. For these, set "additional": true.
     - The trip name, start day, end day, and number of people if mentioned.
-    - Any specific desired destinations if mentioned (e.g. city names, landmarks, attractions).
+    - Any specific desired destinations if mentioned (e.g. landmarks, attractions).
     - A desired starting point if mentioned.
+
+    **Date calculation requirements:**  
+    - If the user provides only a start date or only an end date, automatically calculate the missing date so that the trip duration is at least 2 or 3 days.
+        - For example, if the user says "starting from 12th December" and wants a 3-day trip, set start_day to "YYYY-12-12" and end_day to "YYYY-12-14", where YYYY is the **current year (now: {datetime.datetime.now().year})**.
+        - If the user says "ending on 15th December" and wants a 3-day trip, set end_day to "YYYY-12-15" and start_day to "YYYY-12-13", where YYYY is the **current year (now: {datetime.datetime.now().year})**.
+    - If the user does not specify any dates, choose a time interval that is 2 or 3 days long, starting about 1 or 2 weeks from the current date, and use the **current year ({datetime.datetime.now().year})**.
+    - Never set the same value for both start and end date unless the trip is explicitly for one day.
 
     **Validation requirement:**  
     If the starting point is not one of the following cities (accepting all common spellings, abbreviations, and Vietnamese tone/case variations): 
@@ -62,6 +69,10 @@ def list_tourist_recommendations(
     - "Hue", "Huế", "huế"
     (with or without ', Vietnam'), set a field `valid_starting_point` to `false` and do not generate any plan.  
     Otherwise, set `valid_starting_point` to `true` and always format the starting point as '<city>, Vietnam'.
+
+    **Date formatting requirement:**  
+    For the fields `start_day` and `end_day`, always return dates in ISO format: "YYYY-MM-DD" (e.g., "2024-06-10").  
+    Do not use other formats.
 
     Return the result using this schema:
     - trip_info: object with trip_name (str), start_day (str), end_day (str), num_people (int)

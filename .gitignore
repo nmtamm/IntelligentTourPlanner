@@ -35,11 +35,14 @@ test.db
 *.db
 !test.db
 !test1.db
+!test1_updated.db
 !test2.db
 !test2_cleaned.db
 !test3.db
 !test4.db
 !test5.db
+!test5_cleaned.db
+!merged.db
 *.sqlite
 *.sqlite3
 
@@ -73,3 +76,6 @@ Thumbs.db
 
 # Project specific
 Simple/backend/venv/
+backend/csv_to_db.py
+backend/merge_db.py
+backend/app/merged.db-journal

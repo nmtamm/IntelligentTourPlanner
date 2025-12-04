@@ -20,6 +20,24 @@ export async function fetchSerpLocalResults(query: string, ll: string) {
     return data.local_results;
 }
 
+export async function fetchFilteredPlaces(type: string, latitude: number, longitude: number) {
+    const response = await fetch(
+        `${API_HOST}/api/places/search?type=${encodeURIComponent(type)}&latitude=${latitude}&longitude=${longitude}`,
+        {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        }
+    );
+    if (!response.ok) {
+        console.error("API error:", response.status, await response.text());
+        return [];
+    }
+    const data = await response.json();
+    return data.places || [];
+}
+
 export async function generatePlaces(result, userLocation) {
     const nonAdditionalItems = result.categories.filter(item => !item.additional);
     const additionalItems = result.categories.filter(item => item.additional);
@@ -30,27 +48,23 @@ export async function generatePlaces(result, userLocation) {
     let allPlaces: any[] = [];
     const seenPlaceIDs = new Set();
 
-    let ll: string;
-    if (result.starting_point) {
+    // Use latitude and longitude for backend query
+    let latitude: number;
+    let longitude: number;
+    if (result.starting_point && result.starting_point.trim() !== "") {
         const geo = await geocodeDestination(result.starting_point);
-        if (geo && geo.latitude && geo.longitude) {
-            ll = `@${geo.latitude},${geo.longitude},15.1z`;
-        } else if (userLocation) {
-            ll = `${userLocation.latitude},${userLocation.longitude}`;
-        } else {
-            ll = "";
-        }
-    } else if (userLocation) {
-        ll = `${userLocation.latitude},${userLocation.longitude}`;
+        latitude = geo?.latitude || 0;
+        longitude = geo?.longitude || 0;
     } else {
-        ll = "";
+        latitude = userLocation?.latitude || 0;
+        longitude = userLocation?.longitude || 0;
     }
 
     // Fetch for non-additional categories
     for (let i = 0; i < nonAdditionalItems.length; i++) {
         const item = nonAdditionalItems[i];
         const count = i < remainder ? baseLimit + 1 : baseLimit;
-        const places = await fetchSerpLocalResults(item.name, ll);
+        const places = await fetchFilteredPlaces(item.name, latitude, longitude);
         if (!Array.isArray(places)) {
             console.error("places is not iterable", places);
             continue; // Skip this iteration if places is not an array
@@ -68,7 +82,7 @@ export async function generatePlaces(result, userLocation) {
     let additionalIndex = 0;
     while (allPlaces.length < totalPlaces && additionalIndex < additionalItems.length) {
         const item = additionalItems[additionalIndex];
-        const places = await fetchSerpLocalResults(item.name, ll);
+        const places = await fetchFilteredPlaces(item.name, latitude, longitude);
         if (!Array.isArray(places)) {
             console.error("places is not iterable", places);
             additionalIndex++;

@@ -571,6 +571,17 @@ export function CustomMode({
                   const result = await fetchItinerary({ paragraph: preferences });
                   console.log("Itinerary from backend:", result);
 
+                  if (result.trip_info) {
+                    if (result.trip_info.trip_name) updateTripName(result.trip_info.trip_name);
+                    if (result.trip_info.num_people) setMembers(String(result.trip_info.num_people));
+                    if (result.trip_info.start_day && !isNaN(Date.parse(result.trip_info.start_day))) {
+                      setStartDate(new Date(result.trip_info.start_day));
+                    }
+                    if (result.trip_info.end_day && !isNaN(Date.parse(result.trip_info.end_day))) {
+                      setEndDate(new Date(result.trip_info.end_day));
+                    }
+                  }
+
                   if (
                     userLocation &&
                     Array.isArray(result.categories) &&

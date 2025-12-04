@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from sqlalchemy import Column, Integer, String, Float, JSON, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-DATABASE_URL = "sqlite:///app/test.db"  # Change to your actual database URL
+DATABASE_URL = "sqlite:///app/merged.db"  # Change to your actual database URL
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -119,4 +119,33 @@ async def save_places(payload: PlacesPayload, db: Session = Depends(get_db)):
         return {"status": "success", "count": len(payload.places)}
     except Exception as e:
         db.rollback()
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/api/places/search")
+async def search_places(
+    type: str = Query(..., description="Type of place to search"),
+    latitude: float = Query(..., description="Latitude of the city"),
+    longitude: float = Query(..., description="Longitude of the city"),
+    db: Session = Depends(get_db),
+):
+    try:
+        # Get integer part of latitude for city matching
+        lat_int = int(latitude)
+        # Query places by type and latitude integer match
+        results = (
+            db.query(Place)
+            .filter(
+                Place.type == type,
+                Place.gps_coordinates["latitude"].as_float().cast(Integer) == lat_int,
+            )
+            .all()
+        )
+        # Convert results to JSON serializable format
+        places_json = [
+            {col.name: getattr(place, col.name) for col in Place.__table__.columns}
+            for place in results
+        ]
+        return {"status": "success", "count": len(places_json), "places": places_json}
+    except Exception as e:
         return {"status": "error", "message": str(e)}
