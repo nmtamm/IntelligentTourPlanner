@@ -12,8 +12,10 @@ import { Label } from "./ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { loginUser, registerUser } from '../api.js';
+import { t } from '../utils/translations';
 
-export function AuthModal({ isOpen, onClose, onLogin }) {
+export function AuthModal({ isOpen, onClose, onLogin, language, }) {
+  const lang = language.toLowerCase() as 'en' | 'vi';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -107,12 +109,12 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isLoginMode ? "Login" : "Create a new account"}
+            {isLoginMode ? t('login', lang) : t('createAccount', lang)}
           </DialogTitle>
           <DialogDescription>
             {isLoginMode
-              ? "Sign in to save and manage multiple trip plans"
-              : "Create a new account to save and manage your trip plans"}
+              ? t('signupToStart', lang)
+              : t('loginToAccount', lang)}
           </DialogDescription>
         </DialogHeader>
 
@@ -125,7 +127,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">{t('userName', lang)}</Label>
             <Input
               id="username"
               type="text"
@@ -138,7 +140,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
 
           {!isLoginMode && (
             <div className="space-y-4">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('email', lang)}</Label>
               <Input
                 id="email"
                 type="email"
@@ -150,7 +152,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
             </div>)}
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('password', lang)}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -183,10 +185,10 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
               className="flex-1"
               disabled={loading}
             >
-              Cancel
+              {t('cancel', lang)}
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? 'Please wait...' : (isLoginMode ? 'Login' : 'Register')}
+              {loading ? 'Please wait...' : (isLoginMode ? t('signUp', lang) : t('login', lang))}
             </Button>
           </div>
 
@@ -200,8 +202,8 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
               className="text-sm text-[#004DB6] hover:underline"
             >
               {isLoginMode
-                ? "Don't have an account? Register"
-                : "Already have an account? Login"}
+                ? t('dontHaveAccount', lang)
+                : t('alreadyHaveAccount', lang)}
             </button>
           </div>
 

@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 import { geocodeDestination } from '../utils/geocode';
 import { parseAmount } from '../utils/parseAmount';
 import { makeDestinationFromGeo } from "../utils/destinationFactory";
+import { t } from '../utils/translations';
+import { ErrorNotification } from "./ErrorNotification";
+import { set } from 'date-fns';
 
 interface DayViewProps {
   day: DayPlan;
@@ -22,11 +25,14 @@ interface DayViewProps {
   } | null;
   setPendingDestination: (dest: any) => void;
   generatedPlaces?: any[];
+  language: 'EN' | 'VI';
 }
 
-export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination, generatedPlaces }: DayViewProps) {
+export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDestination, setPendingDestination, generatedPlaces, language }: DayViewProps) {
+  const lang = language.toLowerCase() as 'en' | 'vi';
   const [newDestinationName, setNewDestinationName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (pendingDestination) {
@@ -45,9 +51,9 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
         if (typeof price === "string") {
           // Extract first non-space character (currency symbol)
           symbol = price.trim().charAt(0);
-          if (symbol === "₫" && currency !== "VND") {
+          if (symbol === "VND" && currency !== "VND") {
             detectedCurrency = "VND";
-          } else if (symbol === "$" && currency !== "USD") {
+          } else if (symbol === "USD" && currency !== "USD") {
             detectedCurrency = "USD";
           }
           // Remove leading currency symbols and spaces
@@ -88,7 +94,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
   const addDestination = async () => {
     if (!newDestinationName.trim()) {
-      toast.error('Please enter a destination name');
+      toast.error(t('pleaseEnterDestinationName', lang));
+      setError(t('pleaseEnterDestinationName', lang));
       return;
     }
 
@@ -107,20 +114,21 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     }
 
     if (!geo) {
-      toast.error('Failed to geocode destination. Please try again.');
+      toast.error(t('geocodeDestinationFailed', lang));
+      setError(t('geocodeDestinationFailed', lang));
       setIsAdding(false);
       return;
     }
 
     // Prevent duplicate addition
-    if (day.destinations.some(d =>
-      d.name === (geo.address || newDestinationName) &&
-      d.latitude === geo.lat &&
-      d.longitude === geo.lng
-    )) {
-      toast.error('This destination already exists.');
-      return;
-    }
+    // if (day.destinations.some(d =>
+    //   d.name === (geo.address || newDestinationName) &&
+    //   d.latitude === geo.lat &&
+    //   d.longitude === geo.lng
+    // )) {
+    //   toast.error('This destination already exists.');
+    //   return;
+    // }
 
     const destination = makeDestinationFromGeo(geo, newDestinationName, currency);
 
@@ -181,7 +189,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   const removeCostItem = (destinationId: string, costId: string) => {
     const destination = day.destinations.find(d => d.id === destinationId);
     if (!destination || destination.costs.length === 1) {
-      toast.error('Each destination must have at least one cost item');
+      toast.error(t('oneCostItemRequired', lang));
+      setError(t('oneCostItemRequired', lang));
       return;
     }
 
@@ -204,17 +213,17 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   }
 
   const dayTotal = calculateDayTotal();
-  const currencySymbol = currency === 'USD' ? '$' : '₫';
+  const currencySymbol = currency === 'USD' ? 'USD' : 'VND';
 
   return (
     <Card className="p-6" data-tutorial-card="destinations">
       <div className="space-y-4">
-        <h2 className="text-[#004DB6]">Day {day.dayNumber}</h2>
+        <h2 className="text-[#004DB6]">{t('day', lang)} {day.dayNumber}</h2>
 
         {/* Add Destination */}
         <div className="flex gap-2" data-tutorial="add-destination">
           <Input
-            placeholder="Enter destination name (or click on map)"
+            placeholder={t('enterDestinationName', lang)}
             value={newDestinationName}
             onChange={(e) => setNewDestinationName(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addDestination()}
@@ -223,12 +232,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
             {isAdding ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Adding...
+                {t('adding', lang)}
               </>
             ) : (
               <>
                 <Plus className="w-4 h-4 mr-2" />
-                Add
+                {t('add', lang)}
               </>
             )}
           </Button>
@@ -238,7 +247,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
         <div className="space-y-4 max-h-[600px] overflow-y-auto">
           {day.destinations.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
-              No destinations yet. Add a destination or click on the map!
+              {t('noDestinationsYet', lang)}
             </p>
           ) : (
             day.destinations.map((destination) => {
@@ -257,7 +266,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                       value={destination.name}
                       onChange={(e) => updateDestination(destination.id, { name: e.target.value })}
                       className="flex-1 mr-2"
-                      placeholder="Destination name"
+                      placeholder={t('destinationName', lang)}
                     />
                     <Button
                       variant="ghost"
@@ -276,7 +285,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                           <div className="relative">
                             <button
                               onClick={onCurrencyToggle}
-                              className="absolute left-1 top-1/2 -translate-y-1/2 bg-gray-100 hover:bg-[#DAF9D8] text-gray-700 hover:text-[#004DB6] text-xs px-2 py-1 rounded border border-gray-300 hover:border-[#70C573] transition-all cursor-pointer font-medium shadow-sm"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 bg-gray-100 hover:bg-[#DAF9D8] text-gray-700 hover:text-[#004DB6] text-xs px-2 py-1 rounded border border-gray-300 hover:border-[#70C573] transition-all cursor-pointer font-medium shadow-sm"
                             >
                               {currencySymbol}
                             </button>
@@ -289,7 +298,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                                 originalCurrency: currency,
                               })}
                               placeholder="0"
-                              className="pl-12"
+                              className="pl-3"
                             />
                           </div>
                           <Input
@@ -297,7 +306,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                             onChange={(e) => updateCostItem(destination.id, cost.id, {
                               detail: e.target.value
                             })}
-                            placeholder="Detail (e.g., entrance fee)"
+                            placeholder={t('detailPlaceholder', lang)}
                           />
                         </div>
                         <Button
@@ -321,17 +330,17 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                     data-tutorial="add-cost-item"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Cost Item
+                    {t('addCostItem', lang)}
                   </Button>
 
                   {/* Destination Total */}
                   <div className="pt-2 border-t flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Destination Total:</span>
+                    <span className="text-gray-600">{t('destinationTotal', lang)}</span>
                     <span className="text-gray-900">
-                      {currencySymbol}
                       {isApprox
                         ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
                         : minTotal.toLocaleString()}
+                      {' '}{currencySymbol}
                     </span>
                   </div>
                 </div>
@@ -344,14 +353,13 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
         {day.destinations.length > 0 && (
           <div className="pt-4 border-t">
             <div className="flex items-center justify-between bg-[#DAF9D8] rounded-lg p-4">
-              <span className="text-[#004DB6]">Day {day.dayNumber} Total:</span>
+              <span className="text-[#004DB6]">{t('totalCost', lang)} {t('day', lang)} {day.dayNumber}</span>
 
               <span className="text-[#004DB6]">
-
-                {currencySymbol}
                 {dayTotal.isApprox
                   ? `${dayTotal.minTotal.toLocaleString()} - ${dayTotal.maxTotal.toLocaleString()}`
                   : dayTotal.minTotal.toLocaleString()}
+                {' '}{currencySymbol}
               </span>
             </div>
           </div>

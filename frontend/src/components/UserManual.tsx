@@ -1,153 +1,151 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { X, ChevronRight, SkipForward } from 'lucide-react';
+import { t } from '../utils/translations';
+import { TranslationKey } from '../utils/translations';
 
 interface TutorialStep {
   id: string;
-  title: string;
-  description: string;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
   targetSelector: string;
   position: 'top' | 'bottom' | 'left' | 'right' | 'center';
   autoAction?: boolean; // If true, clicking Next will trigger an automatic action
 }
 
-const tutorialSteps: TutorialStep[] = [
+const getTutorialSteps = (): TutorialStep[] => [
   {
-    id: 'welcome',
-    title: 'Welcome to Intelligent Tour Planner!',
-    description: 'Let\'s take a quick tour of all the features to help you plan your perfect trip. Click Next to begin!',
-    targetSelector: '',
-    position: 'center',
+    id: "welcome",
+    titleKey: "tutorial_welcome_title",
+    descriptionKey: "tutorial_welcome_desc",
+    targetSelector: "",
+    position: "center",
   },
   {
-    id: 'login',
-    title: 'Login to Save Your Plans',
-    description: 'Click the Login button to save your trip plans and access them from any device.',
+    id: "login",
+    titleKey: "tutorial_login_title",
+    descriptionKey: "tutorial_login_desc",
     targetSelector: '[data-tutorial="login"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'language',
-    title: 'Change Language',
-    description: 'Switch between English and Vietnamese to use the app in your preferred language.',
+    id: "language",
+    titleKey: "tutorial_language_title",
+    descriptionKey: "tutorial_language_desc",
     targetSelector: '[data-tutorial="language"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'currency',
-    title: 'Change Currency',
-    description: 'Toggle between USD and VND. All costs throughout the app will update automatically.',
+    id: "currency",
+    titleKey: "tutorial_currency_title",
+    descriptionKey: "tutorial_currency_desc",
     targetSelector: '[data-tutorial="currency"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'generate-plan',
-    title: 'Generate Your Plan',
-    description: 'Describe your dream trip and let AI create an optimized itinerary for you.',
+    id: "generate-plan",
+    titleKey: "tutorial_generate_title",
+    descriptionKey: "tutorial_generate_desc",
     targetSelector: '[data-tutorial="generate-plan"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'trip-name',
-    title: 'Name Your Trip',
-    description: 'Give your trip a memorable name to easily identify it later.',
+    id: "trip-name",
+    titleKey: "tutorial_tripname_title",
+    descriptionKey: "tutorial_tripname_desc",
     targetSelector: '[data-tutorial="trip-name"]',
-    position: 'right',
+    position: "bottom",
   },
   {
-    id: 'members',
-    title: 'Number of Members',
-    description: 'Enter how many people will be traveling on this trip.',
+    id: "members",
+    titleKey: "tutorial_members_title",
+    descriptionKey: "tutorial_members_desc",
     targetSelector: '[data-tutorial="members"]',
-    position: 'left',
+    position: "bottom",
   },
   {
-    id: 'start-date',
-    title: 'Select Start Date',
-    description: 'Choose when your trip begins. You can use the calendar or the arrow buttons.',
+    id: "start-date",
+    titleKey: "tutorial_startdate_title",
+    descriptionKey: "tutorial_startdate_desc",
     targetSelector: '[data-tutorial="start-date"]',
-    position: 'right',
+    position: "bottom",
   },
   {
-    id: 'end-date',
-    title: 'Select End Date',
-    description: 'Choose when your trip ends. The app will automatically create days based on your date range.',
+    id: "end-date",
+    titleKey: "tutorial_enddate_title",
+    descriptionKey: "tutorial_enddate_desc",
     targetSelector: '[data-tutorial="end-date"]',
-    position: 'left',
+    position: "bottom",
   },
   {
-    id: 'day-tabs',
-    title: 'Navigate Between Days',
-    description: 'Switch between different days of your trip. You can also delete days you don\'t need.',
+    id: "day-tabs",
+    titleKey: "tutorial_daytabs_title",
+    descriptionKey: "tutorial_daytabs_desc",
     targetSelector: '[data-tutorial="day-tabs"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'view-all-days',
-    title: 'View All Days',
-    description: 'Click here to see an overview of all your trip days at once.',
+    id: "view-all-days",
+    titleKey: "tutorial_viewalldays_title",
+    descriptionKey: "tutorial_viewalldays_desc",
     targetSelector: '[data-tutorial="view-all-days"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'add-destination',
-    title: 'Add Destinations',
-    description: 'Add destinations to your daily itinerary. When you click Next, we\'ll add two sample destinations for you.',
+    id: "add-destination",
+    titleKey: "tutorial_adddest_title",
+    descriptionKey: "tutorial_adddest_desc",
     targetSelector: '[data-tutorial="add-destination"]',
-    position: 'bottom',
-    autoAction: true,
+    position: "bottom",
   },
   {
-    id: 'add-cost-item',
-    title: 'Add Cost Items',
-    description: 'Add detailed cost items for each destination to track your expenses accurately.',
+    id: "add-cost-item",
+    titleKey: "tutorial_addcost_title",
+    descriptionKey: "tutorial_addcost_desc",
     targetSelector: '[data-tutorial="add-cost-item"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'auto-estimate',
-    title: 'Auto-Estimate Costs',
-    description: 'Let the app automatically estimate costs for your destinations based on typical expenses.',
+    id: "auto-estimate",
+    titleKey: "tutorial_autoestimate_title",
+    descriptionKey: "tutorial_autoestimate_desc",
     targetSelector: '[data-tutorial="auto-estimate"]',
-    position: 'bottom',
+    position: "bottom",
   },
   {
-    id: 'optimize-route',
-    title: 'Find Optimal Route',
-    description: 'Optimize your route for efficient travel.',
+    id: "optimize-route",
+    titleKey: "tutorial_optimize_title",
+    descriptionKey: "tutorial_optimize_desc",
     targetSelector: '[data-tutorial="optimize-route"]',
-    position: 'bottom',
-    autoAction: true,
+    position: "bottom",
   },
   {
-    id: 'map-view',
-    title: 'View on Map',
-    description: 'Visualize your destinations and routes on the map. Click the title to switch between Map View and Route List mode.',
+    id: "map-view",
+    titleKey: "tutorial_mapview_title",
+    descriptionKey: "tutorial_mapview_desc",
     targetSelector: '[data-tutorial="map-view"]',
-    position: 'top',
-    autoAction: true,
+    position: "top",
   },
   {
-    id: 'route-list',
-    title: 'Route List',
-    description: 'See all route segments in a list. Select one to see the corresponding guidance.',
+    id: "route-list",
+    titleKey: "tutorial_routelist_title",
+    descriptionKey: "tutorial_routelist_desc",
     targetSelector: '[data-tutorial="route-list"]',
-    position: 'bottom',
-    autoAction: true,
+    position: "bottom",
   },
   {
-    id: 'route-guidance',
-    title: 'Turn-by-Turn Navigation',
-    description: 'Get detailed turn-by-turn directions between destinations with GPS navigation support.',
+    id: "route-guidance",
+    titleKey: "tutorial_routeguidance_title",
+    descriptionKey: "tutorial_routeguidance_desc",
     targetSelector: '[data-tutorial="route-guidance"]',
-    position: 'center',
+    position: "center",
   },
   {
-    id: 'complete',
-    title: 'Tutorial Complete!',
-    description: 'You\'ve learned all the features of Intelligent Tour Planner. Start creating your perfect trip now!',
-    targetSelector: '',
-    position: 'center',
+    id: "complete",
+    titleKey: "tutorial_complete_title",
+    descriptionKey: "tutorial_complete_desc",
+    targetSelector: "",
+    position: "center",
   },
 ];
 
@@ -155,9 +153,12 @@ interface UserManualProps {
   isOpen: boolean;
   onClose: () => void;
   onAutoAction?: (stepId: string) => void;
+  language: "EN" | "VI";
 }
 
-export function UserManual({ isOpen, onClose, onAutoAction }: UserManualProps) {
+export function UserManual({ isOpen, onClose, onAutoAction, language }: UserManualProps) {
+  const lang = language.toLowerCase() as "en" | "vi";
+  const tutorialSteps = getTutorialSteps();
   const [currentStep, setCurrentStep] = useState(0);
   const [tooltipPosition, setTooltipPosition] = useState<any>(null);
   const [highlightBox, setHighlightBox] = useState<any>(null);
@@ -431,8 +432,8 @@ export function UserManual({ isOpen, onClose, onAutoAction }: UserManualProps) {
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h3 className="text-[#004DB6] mb-2">{step.title}</h3>
-              <p className="text-gray-700 text-sm">{step.description}</p>
+              <h3 className="text-[#004DB6] mb-2">{t(step.titleKey, lang)}</h3>
+              <p className="text-gray-700 text-sm">{t(step.descriptionKey, lang)}</p>
             </div>
             <Button
               variant="ghost"
@@ -448,7 +449,7 @@ export function UserManual({ isOpen, onClose, onAutoAction }: UserManualProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>
-                Step {currentStep + 1} of {tutorialSteps.length}
+                {t("tutorialStep", lang)} {currentStep + 1} {t("of", lang)} {tutorialSteps.length}
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -469,13 +470,13 @@ export function UserManual({ isOpen, onClose, onAutoAction }: UserManualProps) {
               className="flex items-center gap-2"
             >
               <SkipForward className="w-4 h-4" />
-              Skip Tutorial
+              {t("skipTutorial", lang)}
             </Button>
             <Button
               onClick={handleNext}
               className="bg-[#70C573] hover:bg-[#5E885D] text-white flex items-center gap-2"
             >
-              {isLastStep ? 'Finish' : 'Next'}
+              {isLastStep ? t("finish", lang) : t("next", lang)}
               {!isLastStep && <ChevronRight className="w-4 h-4" />}
             </Button>
           </div>
