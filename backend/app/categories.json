@@ -47,28 +47,8 @@
             "name": "Gym"
         },
         {
-            "id": "4bf58dd8d48988d105941735",
-            "name": "Gym Pool"
-        },
-        {
-            "id": "58daa155bbb0b01f18ec203",
-            "name": "Outdoor Gym"
-        },
-        {
-            "id": "5744ccdf4e4b0c0459246b4b2",
-            "name": "Pilates Studio"
-        },
-        {
             "id": "4bf58dd8d48988d102941735",
             "name": "Yoga Studio"
-        },
-        {
-            "id": "63be6904847c3692a84b9c0a",
-            "name": "Gymnastics"
-        },
-        {
-            "id": "52f2ab2ebcbc57f1066b8b48",
-            "name": "Gymnastics Center"
         },
         {
             "id": "4cce45e9bf7b7d49d5e191f5",
@@ -91,24 +71,12 @@
             "name": "Art Museum"
         },
         {
-            "id": "559acbe0498e472f1a53fa23",
-            "name": "Erotic Museum"
-        },
-        {
             "id": "4bf58dd8d48988d190941735",
             "name": "History Museum"
         },
         {
             "id": "4bf58dd8d48988d191941735",
             "name": "Science Museum"
-        },
-        {
-            "id": "507c8c4091d498d9fc8c67a9",
-            "name": "Public Art"
-        },
-        {
-            "id": "52e81612bcbc57f1066b79ed",
-            "name": "Outdoor Sculpture"
         }
     ],
     "music": [
@@ -145,14 +113,6 @@
             "name": "Financial Service"
         },
         {
-            "id": "63be6904847c3692a84b9b3e",
-            "name": "Accounting Service"
-        },
-        {
-            "id": "63be6904847c3692a84b9b3f",
-            "name": "Banking and Finance"
-        },
-        {
             "id": "52f2ab2ebcbc57f1066b8b56",
             "name": "ATM"
         },
@@ -173,10 +133,6 @@
             "name": "Food and Beverage Service"
         },
         {
-            "id": "63be6904847c3692a84b9b47",
-            "name": "Food distribution center"
-        },
-        {
             "id": "4bf58dd8d48988d16a941735",
             "name": "Bakery"
         },
@@ -185,40 +141,16 @@
             "name": "Bar"
         },
         {
-            "id": "4bf58dd8d48988d143941735",
-            "name": "Breakfast Spot"
-        },
-        {
             "id": "63be6904847c3692a84b9bb6",
             "name": "Cafe, Coffee and Tea House"
-        },
-        {
-            "id": "52e81612bcbc57f1066b7a0c",
-            "name": "Bubble Tea Shop"
-        },
-        {
-            "id": "56aa371be4b08b9a8d573508",
-            "name": "Pet Cafe"
         },
         {
             "id": "56aa371be4b08b9a8d573508",
             "name": "Dessert Shop"
         },
         {
-            "id": "5744ccdfe4b0c0459246b4e2",
-            "name": "Pastry Shop"
-        },
-        {
             "id": "4bf58dd8d48988d120951735",
             "name": "Food Court"
-        },
-        {
-            "id": "56aa371be4b08b9a8d57350b",
-            "name": "Food Stand"
-        },
-        {
-            "id": "4bf58dd8d48988d1cb941735",
-            "name": "Food truck"
         },
         {
             "id": "53e510b7498ebcb1801b55d4",
@@ -301,10 +233,6 @@
     ],
     "clothingService": [
         {
-            "id": "52f2ab2ebcbc57f1066b8b33",
-            "name": "Laundromat"
-        },
-        {
             "id": "4bf58dd8d48988d1fc941735",
             "name": "Laumdry Service"
         }
@@ -347,32 +275,8 @@
     ],
     "outdoors": [
         {
-            "id": "50aaa49e4b90af0d42d5de11",
-            "name": "Castle"
-        },
-        {
-            "id": "56aa371be4b08b9a8d573511",
-            "name": "Cave"
-        },
-        {
-            "id": "5fac018b99ce226e27fe7573",
-            "name": "Dam"
-        },
-        {
             "id": "4bf58dd8d48988d15b941735",
             "name": "Farm"
-        },
-        {
-            "id": "4bf58dd8d48988d15f941735",
-            "name": "Field"
-        },
-        {
-            "id": "52e81612bcbc57f1066b7a23",
-            "name": "Forest"
-        },
-        {
-            "id": "56aa371be4b08b9a8d573547",
-            "name": "Fountain"
         },
         {
             "id": "4bf58dd8d48988d15a941735",
@@ -395,18 +299,6 @@
             "name": "Tunnel"
         },
         {
-            "id": "5032848691d4c4b30a586d61",
-            "name": "Volcano"
-        },
-        {
-            "id": "56aa371be4b08b9a8d573560",
-            "name": "Waterfall"
-        },
-        {
-            "id": "56aa371be4b08b9a8d5734c3",
-            "name": "Waterfront"
-        },
-        {
             "id": "4bf58dd8d48988d163941735",
             "name": "Park"
         },
@@ -425,10 +317,6 @@
             "name": "Boutique"
         },
         {
-            "id": "63be6904847c3692a84b9be9",
-            "name": "Cannabis Store"
-        },
-        {
             "id": "52f2ab2ebcbc57f1066b8b18",
             "name": "Comic Book Store"
         },
@@ -441,16 +329,8 @@
             "name": "Camera Store"
         },
         {
-            "id": "4bf58dd8d48988d122951735",
-            "name": "Electronics Store"
-        },
-        {
             "id": "4f04afc02fb6e1c99f3db0bc",
             "name": "Mobile Phone Store"
-        },
-        {
-            "id": "4bf58dd8d48988d10b951735",
-            "name": "Video Games Store"
         },
         {
             "id": "4d954b0ea243a5684a65b473",
@@ -461,16 +341,8 @@
             "name": "Cosmetics Store"
         },
         {
-            "id": "52f2ab2ebcbc57f1066b8b17",
-            "name": "Costume Store"
-        },
-        {
             "id": "5745c2e4498e11e7bccabdbd",
             "name": "Drugstore"
-        },
-        {
-            "id": "4d954afda243a5684a65b473",
-            "name": "Eyecare Store"
         },
         {
             "id": "63be6904847c3692a84b9bec",
@@ -521,23 +393,11 @@
             "name": "Shopping Mall"
         },
         {
-            "id": "5744ccdfe4b0c0459246b4dc",
-            "name": "Shopping Plaza"
-        },
-        {
-            "id": "4bf58dd8d48988d123951735",
-            "name": "Smoke Shop"
-        },
-        {
             "id": "52f2ab2ebcbc57f1066b8b1b",
             "name": "Souvenir Store"
         }
     ],
     "accommodation": [
-        {
-            "id": "63be6904847c3692a84b9c26",
-            "name": "Cabin"
-        },
         {
             "id": "4bf58dd8d48988d1ee931735",
             "name": "Hostel"
@@ -545,10 +405,6 @@
         {
             "id": "4bf58dd8d48988d1fa931735",
             "name": "Hotel"
-        },
-        {
-            "id": "63be6904847c3692a84b9c27",
-            "name": "Lodge"
         },
         {
             "id": "4bf58dd8d48988d1fb931735",
@@ -573,24 +429,12 @@
             "name": "Bus Station"
         },
         {
-            "id": "52f2ab2ebcbc57f1066b8b4f",
-            "name": "Bus Stop"
-        },
-        {
             "id": "4bf58dd8d48988d1fd931735",
             "name": "Metro Station"
         },
         {
-            "id": "4bf58dd8d48988d129951735",
-            "name": "Rail Station"
-        },
-        {
             "id": "53fca564498e1a175f32528b",
             "name": "Taxi Stand"
-        },
-        {
-            "id": "63be6904847c3692a84b9c2d",
-            "name": "Public Transportation"
         }
     ]
 }

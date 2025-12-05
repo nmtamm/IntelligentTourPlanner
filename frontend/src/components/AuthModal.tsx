@@ -31,7 +31,7 @@ export function AuthModal({ isOpen, onClose, onLogin, language, }) {
     if (isLoginMode) {
       // Login
       if (!username.trim() || !password.trim()) {
-        const msg = 'Please enter username and password';
+        const msg = t('enterNameAndPass', lang);
         setErrorMessage(msg);
         toast.error(msg);
         return;
@@ -60,11 +60,11 @@ export function AuthModal({ isOpen, onClose, onLogin, language, }) {
 
         // If backend returns 401 for wrong credentials
         if (error?.response?.status === 401) {
-          setErrorMessage('Wrong username or password.');
-          toast.error('Wrong username or password.');
+          setErrorMessage(t('wrongNameOrPass', lang));
+          toast.error(t('wrongNameOrPass', lang));
         } else {
-          setErrorMessage('Login failed. Please check your credentials.');
-          toast.error('Login failed. Please check your credentials.');
+          setErrorMessage(t('loginFailedCheckCredentials', lang));
+          toast.error(t('loginFailedCheckCredentials', lang));
         }
       } finally {
         setLoading(false);
@@ -72,7 +72,7 @@ export function AuthModal({ isOpen, onClose, onLogin, language, }) {
     } else {
       // Register
       if (!username.trim() || !email.trim() || !password.trim()) {
-        const msg = 'Please fill in all fields';
+        const msg = t('pleaseFillInAllFields', lang);
         setErrorMessage(msg);
         toast.error(msg);
         return;
@@ -92,11 +92,11 @@ export function AuthModal({ isOpen, onClose, onLogin, language, }) {
       } catch (error: any) {
         console.error('Registration error:', error);
         if (error.response?.status === 400) {
-          setErrorMessage('Username or email already exists');
-          toast.error('Username or email already exists');
+          setErrorMessage(t('userNameorEmailExists', lang));
+          toast.error(t('userNameorEmailExists', lang));
         } else {
-          setErrorMessage('Registration failed. Please try again.');
-          toast.error('Registration failed. Please try again.');
+          setErrorMessage(t('registationFailed', lang));
+          toast.error(t('registationFailed', lang));
         }
       } finally {
         setLoading(false);
@@ -206,12 +206,6 @@ export function AuthModal({ isOpen, onClose, onLogin, language, }) {
                 : t('alreadyHaveAccount', lang)}
             </button>
           </div>
-
-          {isLoginMode && (
-            <p className="text-xs text-gray-500 text-center">
-              Demo mode: Use any email/password to login
-            </p>
-          )}
         </form>
       </DialogContent>
     </Dialog>

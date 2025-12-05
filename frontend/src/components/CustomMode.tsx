@@ -37,11 +37,12 @@ import { getOptimizedRoute } from "../utils/geocode";
 import { fetchItinerary } from "../utils/gemini";
 import { data } from "react-router-dom";
 import { convertCurrency, convertAllDays } from "../utils/exchangerate";
-import { generatePlaces } from "../utils/serp";
+import { fetchPlacesData, generatePlaces, savePlacesToBackend } from "../utils/serp";
 import { geocodeDestination } from "../utils/geocode";
 import { makeDestinationFromGeo } from "../utils/destinationFactory";
 import { t } from "../utils/translations";
 import { ErrorNotification } from "./ErrorNotification";
+import { sendLocationToBackend } from "../utils/geolocation";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };

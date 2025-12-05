@@ -106,18 +106,16 @@ def list_tourist_recommendations(
 
 
 def list_all_tourist_categories():
-    # try:
-    #     category_names = [item["name"] for cat in CATEGORIES.values() for item in cat]
-    #     for name in category_names:
-    #         print(f"- {name}")
-    #     return category_names
-    # except Exception as e:
-    #     return {"error": str(e)}
     try:
         category_names = [item["name"] for cat in CATEGORIES.values() for item in cat]
-        top_five = category_names[110:]
-        for name in top_five:
-            print(f"- {name}")
-        return top_five
+        return category_names
     except Exception as e:
         return {"error": str(e)}
+    # try:
+    #     category_names = [item["name"] for cat in CATEGORIES.values() for item in cat]
+    #     top_five = category_names[:50]
+    #     for name in top_five:
+    #         print(f"- {name}")
+    #     return top_five
+    # except Exception as e:
+    #     return {"error": str(e)}

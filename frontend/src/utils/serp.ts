@@ -109,12 +109,27 @@ export async function fetchPlacesData() {
     const result = await fetchTouristCategories();
     console.log("Fetched Categories:", result);
 
-    const geo = await geocodeDestination("Hue, Vietnam");
-    let ll: string;
-    if (geo && geo.latitude && geo.longitude) {
-        ll = `@${geo.latitude},${geo.longitude},15.1z`;
-    }
-    else ll = "";
+    // Dinh Doc Lap
+    // const latitude = 10.7770348;
+    // const longitude = 106.695488;
+
+    // Vincom Mega Mall Thao Dien
+    // const latitude = 10.8020001;
+    // const longitude = 106.7406138;
+
+    // Mega GS Ly Chinh Thang
+    // const latitude = 10.7806423;
+    // const longitude = 106.6823914;
+
+    // Nga 6 Nguyen Tri Phương
+    // const latitude = 10.7597684;
+    // const longitude = 106.6690555;
+
+    // Cau Anh Sao
+    const latitude = 10.7247339;
+    const longitude = 106.7185226;
+
+    const ll = `@${latitude},${longitude},15.1z`;
 
     const allPlaces: any[] = [];
     for (const category of result) {

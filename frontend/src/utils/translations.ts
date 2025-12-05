@@ -304,6 +304,30 @@ Bạn có thể đề cập một số chi tiết dưới đây để giúp chú
     en: "Please enter email and password",
     vi: "Vui lòng nhập email và mật khẩu"
   },
+  enterNameAndPass: {
+    en: "Please enter username and password",
+    vi: "Vui lòng nhập tên đăng nhập và mật khẩu"
+  },
+  wrongNameOrPass: {
+    en: "Wrong username or password.",
+    vi: "Sai tên đăng nhập hoặc mật khẩu."
+  },
+  loginFailedCheckCredentials: {
+    en: "Login failed. Please check your credentials.",
+    vi: "Đăng nhập thất bại. Vui lòng kiểm tra thông tin của bạn."
+  },
+  pleaseFillInAllFields: {
+    en: "Please fill in all fields",
+    vi: "Vui lòng điền vào tất cả các trường"
+  },
+  userNameorEmailExists: {
+    en: "Username or email already exists",
+    vi: "Tên đăng nhập hoặc email đã tồn tại"
+  },
+  registationFailed: {
+    en: "Registration failed. Please try again.",
+    vi: "Đăng ký thất bại. Vui lòng thử lại."
+  },
 
   // Toast Messages
   pleaseLogin: {
