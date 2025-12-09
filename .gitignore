@@ -44,6 +44,7 @@ test.db
 !test5_cleaned.db
 !merged.db
 !test6.db
+!test6_cleaned.db
 !test7.db
 !test8.db
 *.sqlite
