@@ -44,6 +44,10 @@ test.db
 !test5.db
 !test5_cleaned.db
 !merged.db
+!merged1.db
+!merged2.db
+!merged3.db
+!merged4.db
 !test6.db
 !test6_cleaned.db
 !test7.db
@@ -82,6 +86,3 @@ Thumbs.db
 
 # Project specific
 Simple/backend/venv/
-backend/csv_to_db.py
-backend/merge_db.py
-backend/app/merged.db-journal
