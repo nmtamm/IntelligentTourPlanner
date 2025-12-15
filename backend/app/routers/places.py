@@ -46,6 +46,7 @@ class Place(Base):
     unsupported_extensions = Column(JSON)
     serpapi_thumbnail = Column(String)
     user_review = Column(String)
+    place_detail = Column(JSON)
 
 
 Base.metadata.create_all(bind=engine)
@@ -88,6 +89,7 @@ class PlaceIn(BaseModel):
     unsupported_extensions: Optional[List[Dict[str, Any]]] = None
     serpapi_thumbnail: Optional[str] = None
     user_review: Optional[str] = None
+    place_detail: Optional[Dict[str, Any]] = None
 
     class Config:
         extra = "allow"
