@@ -1,110 +1,12 @@
+import json
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-from sqlalchemy import Column, Integer, String, Float, JSON, create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from ..place_models import Place, CityType, PlaceBase
+from ..place_schemas import PlaceIn, PlacesPayload, GPSCoordinates
+from ..place_database import get_db
+from sqlalchemy.orm import Session
+from sqlalchemy import Integer, desc, func, text, JSON, Float
 
-DATABASE_URL = "sqlite:///app/merged.db"  # Change to your actual database URL
-
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 router = APIRouter()
-
-
-class Place(Base):
-    __tablename__ = "places"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    position = Column(Integer)
-    title = Column(String)
-    place_id = Column(String, unique=True, index=True)
-    data_id = Column(String)
-    data_cid = Column(String)
-    reviews_link = Column(String)
-    photos_link = Column(String)
-    gps_coordinates = Column(JSON)
-    place_id_search = Column(String)
-    provider_id = Column(String)
-    rating = Column(Float)
-    reviews = Column(Integer)
-    price = Column(String)
-    type = Column(String)
-    types = Column(JSON)
-    type_id = Column(String)
-    type_ids = Column(JSON)
-    address = Column(String)
-    open_state = Column(String)
-    hours = Column(String)
-    operating_hours = Column(JSON)
-    phone = Column(String)
-    website = Column(String)
-    amenities = Column(JSON)
-    description = Column(String)
-    service_options = Column(JSON)
-    thumbnail = Column(String)
-    extensions = Column(JSON)
-    unsupported_extensions = Column(JSON)
-    serpapi_thumbnail = Column(String)
-    user_review = Column(String)
-    place_detail = Column(JSON)
-
-
-Base.metadata.create_all(bind=engine)
-
-
-class GPSCoordinates(BaseModel):
-    latitude: Optional[float]
-    longitude: Optional[float]
-
-
-class PlaceIn(BaseModel):
-    position: Optional[int] = None
-    title: Optional[str] = None
-    place_id: str
-    data_id: Optional[str] = None
-    data_cid: Optional[str] = None
-    reviews_link: Optional[str] = None
-    photos_link: Optional[str] = None
-    gps_coordinates: Optional[Dict[str, float]] = None
-    place_id_search: Optional[str] = None
-    provider_id: Optional[str] = None
-    rating: Optional[float] = None
-    reviews: Optional[int] = None
-    price: Optional[str] = None
-    type: Optional[str] = None
-    types: Optional[List[str]] = None
-    type_id: Optional[str] = None
-    type_ids: Optional[List[str]] = None
-    address: Optional[str] = None
-    open_state: Optional[str] = None
-    hours: Optional[str] = None
-    operating_hours: Optional[Dict[str, str]] = None
-    phone: Optional[str] = None
-    website: Optional[str] = None
-    amenities: Optional[List[str]] = None
-    description: Optional[str] = None
-    service_options: Optional[Dict[str, Any]] = None
-    thumbnail: Optional[str] = None
-    extensions: Optional[List[Dict[str, Any]]] = None
-    unsupported_extensions: Optional[List[Dict[str, Any]]] = None
-    serpapi_thumbnail: Optional[str] = None
-    user_review: Optional[str] = None
-    place_detail: Optional[Dict[str, Any]] = None
-
-    class Config:
-        extra = "allow"
-
-
-class PlacesPayload(BaseModel):
-    places: List[PlaceIn]
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/api/places/save")
@@ -126,28 +28,109 @@ async def save_places(payload: PlacesPayload, db: Session = Depends(get_db)):
 
 @router.get("/api/places/search")
 async def search_places(
-    type: str = Query(..., description="Type of place to search"),
-    latitude: float = Query(..., description="Latitude of the city"),
-    longitude: float = Query(..., description="Longitude of the city"),
+    type: str = Query(...),
+    latitude: float = Query(...),
+    longitude: float = Query(...),
     db: Session = Depends(get_db),
 ):
     try:
-        # Get integer part of latitude for city matching
         lat_int = int(latitude)
-        # Query places by type and latitude integer match
-        results = (
-            db.query(Place)
-            .filter(
-                Place.type == type,
-                Place.gps_coordinates["latitude"].as_float().cast(Integer) == lat_int,
+        sql = text(
+            """
+            SELECT * FROM places
+            WHERE EXISTS (
+                SELECT 1 FROM json_each(places.type_ids)
+                WHERE json_each.value = :type
             )
-            .all()
+            AND CAST(json_extract(gps_coordinates, '$.latitude') AS INTEGER) = :lat_int
+            ORDER BY POI_score DESC
+            """
         )
-        # Convert results to JSON serializable format
-        places_json = [
-            {col.name: getattr(place, col.name) for col in Place.__table__.columns}
-            for place in results
-        ]
+        results = db.execute(sql, {"type": type, "lat_int": lat_int}).fetchall()
+        columns = [col.name for col in Place.__table__.columns]
+        types = {col.name: col.type for col in Place.__table__.columns}
+
+        places_json = []
+        for row in results:
+            place = {}
+            for idx, col in enumerate(columns):
+                value = row[idx]
+                col_type = types[col]
+                # Handle JSON columns
+                if isinstance(col_type, JSON):
+                    try:
+                        value = json.loads(value) if value is not None else None
+                    except Exception:
+                        pass
+                # Handle Float
+                elif isinstance(col_type, Float):
+                    value = float(value) if value is not None else None
+                # Handle Integer
+                elif isinstance(col_type, Integer):
+                    value = int(value) if value is not None else None
+                # Otherwise, leave as is (String, etc.)
+                place[col] = value
+            places_json.append(place)
+
         return {"status": "success", "count": len(places_json), "places": places_json}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def get_available_categories(city_name: str, db: Session):
+    return set(
+        t.type_name for t in db.query(CityType).filter_by(city_name=city_name).all()
+    )
+
+
+def get_types_dict_from_stats(city_name: str, db: Session):
+    rows = db.execute(
+        text(
+            "SELECT type_id FROM type_stats WHERE city_name = :city_name ORDER BY type_score DESC"
+        ),
+        {"city_name": city_name},
+    ).fetchall()
+    return {"types": [{"name": row[0], "id": row[0]} for row in rows]}
+
+
+@router.get("/api/places/manualsearch")
+def search_places(query: str, db=Depends(get_db)):
+    try:
+        sql = text("SELECT * FROM places_search WHERE title MATCH :q LIMIT 10")
+        results = db.execute(sql, {"q": query}).mappings().all()
+        return list(results)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/api/places/byid")
+def get_place_by_id(id: str, db=Depends(get_db)):
+    try:
+        sql = text("SELECT * FROM places WHERE place_id = :id")
+        row = db.execute(sql, {"id": id}).fetchone()
+        if not row:
+            return None
+
+        columns = [col.name for col in Place.__table__.columns]
+        types = {col.name: col.type for col in Place.__table__.columns}
+        place = {}
+        for idx, col in enumerate(columns):
+            value = row[idx]
+            col_type = types[col]
+            # Handle JSON columns
+            if isinstance(col_type, JSON):
+                try:
+                    value = json.loads(value) if value is not None else None
+                except Exception:
+                    pass
+            # Handle Float
+            elif isinstance(col_type, Float):
+                value = float(value) if value is not None else None
+            # Handle Integer
+            elif isinstance(col_type, Integer):
+                value = int(value) if value is not None else None
+            # Otherwise, leave as is (String, etc.)
+            place[col] = value
+        return place
     except Exception as e:
         return {"status": "error", "message": str(e)}

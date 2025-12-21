@@ -11,9 +11,9 @@ from ..auth.auth_handler import (
     get_user,
     get_password_hash,
 )
-from ..database import get_db
-from ..schemas import Token, UserCreate, UserResponse
-from ..models import User
+from ..user_database import get_db
+from ..user_schemas import Token, UserCreate, UserResponse
+from ..user_models import User
 
 router = APIRouter()
 

@@ -108,7 +108,7 @@ export function AllDaysView({ days, currency, onCurrencyToggle, language }: AllD
                           </div>
                           <span className="text-gray-600 ml-2">
                             {isApprox
-                              ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
+                              ? `${minTotal.toLocaleString()} \u2013 ${maxTotal.toLocaleString()}`
                               : minTotal.toLocaleString()}
                             {' '}{currencySymbol}
                           </span>

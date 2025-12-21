@@ -60,6 +60,8 @@ export async function generatePlaces(result, userLocation) {
         longitude = userLocation?.longitude || 0;
     }
 
+    console.log("Using coordinates:", latitude, longitude);
+
     // Fetch for non-additional categories
     for (let i = 0; i < nonAdditionalItems.length; i++) {
         const item = nonAdditionalItems[i];
@@ -155,4 +157,21 @@ export async function savePlacesToBackend(allPlaces: any[]) {
         throw new Error('Failed to save places');
     }
     return await response.json();
+}
+
+export async function handleSearch(query: string) {
+    if (!query) return [];
+    const res = await fetch(`${API_HOST}/api/places/manualsearch?query=${encodeURIComponent(query)}`);
+    if (!res.ok) {
+        console.error("API error:", res.status, await res.text());
+        return [];
+    }
+    const data = await res.json();
+    return data;
+}
+
+export async function getPlaceById(id: string) {
+    const res = await fetch(`${API_HOST}/api/places/byid?id=${id}`);
+    if (!res.ok) return null;
+    return await res.json();
 }

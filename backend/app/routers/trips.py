@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..auth.auth_handler import get_current_active_user
-from ..database import get_db
-from ..schemas import TripCreate, TripUpdate, TripResponse
-from ..models import User, Trip, Day, Destination, Cost
+from ..user_database import get_db
+from ..user_schemas import TripCreate, TripUpdate, TripResponse
+from ..user_models import User, Trip, Day, Destination, Cost
 
 router = APIRouter(prefix="/api/trips", tags=["Trips"])
 

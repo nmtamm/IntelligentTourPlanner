@@ -5,12 +5,9 @@ import { Input } from './ui/input';
 import { Plus, Trash2, DollarSign, Loader2 } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
-import { geocodeDestination } from '../utils/geocode';
 import { parseAmount } from '../utils/parseAmount';
-import { makeDestinationFromGeo } from "../utils/destinationFactory";
 import { t } from '../utils/translations';
-import { ErrorNotification } from "./ErrorNotification";
-import { set } from 'date-fns';
+import { handleSearch, getPlaceById } from '../utils/serp';
 
 interface DayViewProps {
   day: DayPlan;
@@ -33,6 +30,8 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   const [newDestinationName, setNewDestinationName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (pendingDestination) {
@@ -61,7 +60,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
         }
         return {
           id: `${Date.now()}-${idx}`,
-          name: place.title + ", " + (place.address || ""),
+          name: place.title,
           address: place.address || "",
           costs: [{
             id: `${Date.now()}-${idx}`,
@@ -91,32 +90,41 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
   }, [generatedPlaces]);
 
   const addDestination = async () => {
-    if (!newDestinationName.trim()) {
+    if (!newDestinationName.trim() || !selectedPlaceId) {
       toast.error(t('pleaseEnterDestinationName', lang));
       setError(t('pleaseEnterDestinationName', lang));
-      return;
-    }
-
-    setIsAdding(true);
-
-    let geo;
-    if (pendingDestination) {
-      geo = {
-        latitude: pendingDestination.latitude,
-        longitude: pendingDestination.longitude,
-        address: pendingDestination.address,
-        name: pendingDestination.name,
-      };
-    } else {
-      geo = await geocodeDestination(newDestinationName);
-    }
-
-    if (!geo) {
-      toast.error(t('geocodeDestinationFailed', lang));
-      setError(t('geocodeDestinationFailed', lang));
       setIsAdding(false);
       return;
     }
+
+    console.log("Adding destination with place ID:", selectedPlaceId);
+    setIsAdding(true);
+
+    // Fetch full place info from backend
+    const place = await getPlaceById(selectedPlaceId);
+    if (!place) {
+      setIsAdding(false);
+      return;
+    }
+
+    // let geo;
+    // if (pendingDestination) {
+    //   geo = {
+    //     latitude: pendingDestination.latitude,
+    //     longitude: pendingDestination.longitude,
+    //     address: pendingDestination.address,
+    //     name: pendingDestination.name,
+    //   };
+    // } else {
+    //   geo = await geocodeDestination(newDestinationName);
+    // }
+
+    // if (!geo) {
+    //   toast.error(t('geocodeDestinationFailed', lang));
+    //   setError(t('geocodeDestinationFailed', lang));
+    //   setIsAdding(false);
+    //   return;
+    // }
 
     // Prevent duplicate addition
     // if (day.destinations.some(d =>
@@ -128,8 +136,24 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     //   return;
     // }
 
-    const destination = makeDestinationFromGeo(geo, newDestinationName, currency);
+    // const destination = makeDestinationFromGeo(geo, newDestinationName, currency);
 
+    const destination = {
+      id: place.place_id,
+      name: place.title,
+      address: place.address || "",
+      costs: [{
+        id: `${Date.now()}-0`,
+        amount: place.price || "",
+        detail: "",
+        originalAmount: place.price || "",
+        originalCurrency: currency,
+      }],
+      latitude: place.gps_coordinates.latitude,
+      longitude: place.gps_coordinates.longitude,
+    };
+
+    console.log("Adding destination:", destination);
     onUpdate({
       ...day,
       destinations: [...day.destinations, destination],
@@ -138,6 +162,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
     setNewDestinationName('');
     setPendingDestination(null);
+    setSelectedPlaceId(null);
     toast.success('Destination added!');
     setIsAdding(false);
   };
@@ -197,6 +222,17 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     });
   };
 
+  const onDestinationInputChange = async (value: string) => {
+    setNewDestinationName(value);
+    setSelectedPlaceId(null);
+    if (value.trim()) {
+      const results = await handleSearch(value);
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
   function calculateDayTotal() {
     let minTotal = 0, maxTotal = 0, isApprox = false;
     day.destinations.forEach(dest => {
@@ -220,13 +256,43 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
         {/* Add Destination */}
         <div className="flex gap-2" data-tutorial="add-destination">
-          <Input
-            placeholder={t('enterDestinationName', lang)}
-            value={newDestinationName}
-            onChange={(e) => setNewDestinationName(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addDestination()}
-          />
-          <Button onClick={addDestination}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <Input
+              placeholder={t('enterDestinationName', lang)}
+              value={newDestinationName}
+              onChange={(e) => onDestinationInputChange(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addDestination()}
+            />
+            {/* Autocomplete dropdown */}
+            {searchResults.length > 0 && (
+              <div style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                background: "white",
+                border: "1px solid #eee",
+                zIndex: 10,
+                maxHeight: 200,
+                overflowY: "auto"
+              }}>
+                {searchResults.map((result, idx) => (
+                  <div
+                    key={idx}
+                    style={{ padding: "8px", cursor: "pointer" }}
+                    onClick={() => {
+                      setNewDestinationName(result.title);
+                      setSelectedPlaceId(result.place_id);
+                      setSearchResults([]);
+                    }}
+                  >
+                    {result.title}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <Button onClick={addDestination} disabled={!selectedPlaceId || isAdding}>
             {isAdding ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -289,7 +355,12 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                             </button>
                             <Input
                               type="string"
-                              value={cost.amount || ''}
+                              value={(() => {
+                                const parsed = parseAmount(cost.amount);
+                                return parsed.min !== parsed.max
+                                  ? `${parsed.min.toLocaleString()} \u2013 ${parsed.max.toLocaleString()}`
+                                  : parsed.min.toLocaleString();
+                              })()}
                               onChange={(e) => updateCostItem(destination.id, cost.id, {
                                 amount: e.target.value,
                                 originalAmount: e.target.value,
@@ -336,7 +407,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
                     <span className="text-gray-600">{t('destinationTotal', lang)}</span>
                     <span className="text-gray-900">
                       {isApprox
-                        ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
+                        ? `${minTotal.toLocaleString()} \u2013 ${maxTotal.toLocaleString()}`
                         : minTotal.toLocaleString()}
                       {' '}{currencySymbol}
                     </span>
@@ -355,7 +426,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
               <span className="text-[#004DB6]">
                 {dayTotal.isApprox
-                  ? `${dayTotal.minTotal.toLocaleString()} - ${dayTotal.maxTotal.toLocaleString()}`
+                  ? `${dayTotal.minTotal.toLocaleString()} \u2013 ${dayTotal.maxTotal.toLocaleString()}`
                   : dayTotal.minTotal.toLocaleString()}
                 {' '}{currencySymbol}
               </span>
@@ -363,6 +434,6 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
           </div>
         )}
       </div>
-    </Card>
+    </Card >
   );
 }
