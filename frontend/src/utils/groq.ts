@@ -8,3 +8,12 @@ export async function fetchItineraryWithGroq(paragraph: string) {
     });
     return await response.json();
 }
+
+export async function detectAndExecuteGroqCommand(prompt: string) {
+    const response = await fetch(`${API_HOST}/api/groq/detect-command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+    });
+    return await response.json();
+}

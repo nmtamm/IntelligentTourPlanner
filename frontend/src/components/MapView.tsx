@@ -21,6 +21,9 @@ interface MapViewProps {
   onManualActionComplete?: () => void;
   resetMapView?: boolean;
   language: 'EN' | 'VI';
+  AICommand?: string | null;
+  AICommandPayload?: any;
+  onAIActionComplete?: () => void;
 }
 
 function FitBounds({ bounds }) {

@@ -37,12 +37,14 @@ export default function App() {
   const [currentPlanId, setCurrentPlanId] = useState<
     string | null
   >(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isUserManualOpen, setIsUserManualOpen] = useState(false);
   const [manualStepAction, setManualStepAction] = useState<string | null>(null);
   const [resetViewsToDefault, setResetViewsToDefault] = useState(false);
   const [showAllDaysOnLoad, setShowAllDaysOnLoad] = useState(false);
-
+  const [AICommand, setAICommand] = useState<string | null>(null);
+  const [AICommandPayload, setAICommandPayload] = useState<any>(null);
+  const mergedAction = manualStepAction || AICommand;
   const lang = language.toLowerCase() as 'en' | 'vi';
 
   // => I put this in GpsGate.tsx now
@@ -139,6 +141,18 @@ export default function App() {
     setTimeout(() => {
       setResetViewsToDefault(false);
     }, 100);
+  };
+
+  const handleAICommand = (command: string, payload?: any) => {
+    // Handle commands that affect App state directly
+    if (command === "open_user_manual") setIsUserManualOpen(true);
+    else if (command === "change_language") setLanguage(language === "EN" ? "VI" : "EN");
+    else if (command === "change_currency") setCurrency(currency === "USD" ? "VND" : "USD");
+    else if (command === "show_saved_plan" && isLoggedIn) setShowSavedPlans(true);
+
+    // For commands that need to be passed down (with or without payload)
+    setAICommand(command);
+    setAICommandPayload(payload);
   };
 
   return (
@@ -246,6 +260,11 @@ export default function App() {
               onCreateNew={handleCreateNewPlan}
               currency={currency}
               language={language}
+              AICommand={AICommand}
+              onAICommand={handleAICommand}
+              onAIActionComplete={() => {
+                setAICommand(null);
+              }}
             />
           ) : (
             <CustomMode
@@ -272,10 +291,14 @@ export default function App() {
               currentUser={currentUser}
               planId={currentPlanId}
               userLocation={userLocation}
-              manualStepAction={manualStepAction}
-              onManualActionComplete={() => setManualStepAction(null)}
+              manualStepAction={mergedAction}
+              onManualActionComplete={() => {
+                setManualStepAction(null);
+                setAICommand(null);
+              }}
               resetToDefault={resetViewsToDefault}
               showAllDaysOnLoad={showAllDaysOnLoad}
+              onAICommand={handleAICommand}
             />
           )}
         </main>

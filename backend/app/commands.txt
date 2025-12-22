@@ -1,0 +1,24 @@
+1. Open user manual
+2. Change language
+3. Change currency
+4. Update trip name
+5. Update members
+6. Update start date
+7. Update end date
+8. Add new day
+9. Swap day
+10. Add new day after current day
+11. Add new day after day ith
+12. View all days
+13. Delete current day
+14. Delete all days
+15. Delete a range of days
+16. Find optimal route
+17. Add new destination
+18. Show route list
+19. Show map View
+20. Extend map View
+21. Find route of pair ith
+22. show saved plan
+23. delete all saved plan
+24. delete save plan ith

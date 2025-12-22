@@ -43,7 +43,7 @@ import { makeDestinationFromGeo } from "../utils/destinationFactory";
 import { t } from "../utils/translations";
 import { ErrorNotification } from "./ErrorNotification";
 import { sendLocationToBackend } from "../utils/geolocation";
-import { fetchItineraryWithGroq } from "../utils/groq";
+import { fetchItineraryWithGroq, detectAndExecuteGroqCommand } from "../utils/groq";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -59,7 +59,10 @@ interface CustomModeProps {
   onManualActionComplete?: () => void;
   resetToDefault?: boolean;
   showAllDaysOnLoad?: boolean;
+  onAICommand?: (command: string, payload?: any) => void;
 }
+
+
 
 type ViewMode = "single" | "all" | "route-guidance";
 
@@ -77,7 +80,10 @@ export function CustomMode({
   onManualActionComplete,
   resetToDefault,
   showAllDaysOnLoad,
+  onAICommand,
 }: CustomModeProps) {
+
+  // 1. Define state constant
   const lang = language.toLowerCase() as 'en' | 'vi';
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [selectedDay, setSelectedDay] = useState<string>("1");
@@ -96,9 +102,7 @@ export function CustomMode({
   const [isSaving, setIsSaving] = useState(false);
   const [routeSegmentIndex, setRouteSegmentIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const [convertedDays, setConvertedDays] = useState(localTripData.days);
-
   const [allPlaces, setAllPlaces] = useState<any[]>([]);
   const [pendingDestination, setPendingDestination] = useState<{
     name: string;
@@ -106,155 +110,10 @@ export function CustomMode({
     longitude: number;
     address: string;
   } | null>(null);
+  const [latestAIResult, setLatestAIResult] = useState<any>(null);
+  // 2. State hooks
 
-  // Reset to default view states when User Manual is opened
-  useEffect(() => {
-    if (resetToDefault) {
-      const firstDay = localTripData.days[0];
-
-      setViewMode("single");
-      setIsMapExpanded(false);
-      setRouteGuidancePair(null);
-
-      if (firstDay) {
-        setSelectedDay(firstDay.id);
-      }
-    }
-  }, [resetToDefault, localTripData.days]);
-
-  // Switch to View All Days when a plan is loaded from My Plans
-  useEffect(() => {
-    if (showAllDaysOnLoad) {
-      setViewMode("all");
-      setIsMapExpanded(false);
-      setRouteGuidancePair(null);
-    }
-  }, [showAllDaysOnLoad]);
-
-  // Watch for changes to tripData
-  useEffect(() => {
-    setHasUnsavedChanges(true);
-  }, [tripData]);
-
-  // Automatically adjust number of days based on Start Date and End Date (user input)
-  useEffect(() => {
-    if (startDate && endDate && isDateUserInput) {
-      const daysDifference =
-        differenceInDays(endDate, startDate) + 1;
-
-      if (daysDifference !== localTripData.days.length) {
-        const newDays: DayPlan[] = [];
-
-        for (let i = 0; i < daysDifference; i++) {
-          const existingDay = localTripData.days[i];
-          newDays.push(
-            existingDay
-              ? {
-                ...existingDay,
-                id: String(i + 1),
-                dayNumber: i + 1,
-              }
-              : {
-                id: String(i + 1),
-                dayNumber: i + 1,
-                destinations: [],
-                optimizedRoute: [],
-              },
-          );
-        }
-
-        handleTripDataChange({
-          ...localTripData,
-          days: newDays,
-        });
-        toast.success(
-          `${t('tripAdjusted', lang)} ${daysDifference} ${daysDifference > 1 ? t('days', lang) : t('day', lang)}`,
-        );
-      }
-      setIsDateUserInput(false);
-    }
-  }, [startDate, endDate, isDateUserInput]);
-
-  // Sync End Date when days are manually added/removed
-  useEffect(() => {
-    if (startDate && !isDateUserInput) {
-      const calculatedEndDate = addDays(
-        startDate,
-        localTripData.days.length - 1,
-      );
-      setEndDate(calculatedEndDate);
-    }
-  }, [localTripData.days.length, startDate, isDateUserInput]);
-
-  // Focus the selected day when Calendar opens or date updates
-  useEffect(() => {
-    const selectedEl = document.querySelector(
-      "[aria-selected='true']"
-    ) as HTMLElement | null;
-
-    selectedEl?.focus();
-  }, [startDate, endDate]);
-
-  // Convert all days' costs when currency changes or days change
-  useEffect(() => {
-    const updateConvertedDays = async () => {
-      const result = await convertAllDays(localTripData.days, currency);
-      setConvertedDays(result);
-    };
-    updateConvertedDays();
-  }, [localTripData.days, currency]);
-
-  // Handle manual step actions from User Manual
-  useEffect(() => {
-    if (!manualStepAction || !onManualActionComplete) return;
-
-    const handleAction = async () => {
-      switch (manualStepAction) {
-        case 'add-destination': {
-          // Add Ho Chi Minh and Ha Noi as sample destinations
-          const day = localTripData.days.find((d) => d.id === selectedDay);
-          if (!day) break;
-          if (day.destinations.length > 1) break;
-
-          const hoChiMinhGeo = await geocodeDestination("Ho Chi Minh City, Vietnam");
-          const haNoiGeo = await geocodeDestination("Ha Noi, Vietnam");
-
-          if (!hoChiMinhGeo || !haNoiGeo) {
-            toast.error("Failed to geocode sample destinations.");
-            return;
-          }
-
-          const hoChiMinh = makeDestinationFromGeo(hoChiMinhGeo, "Ho Chi Minh City", currency);
-          const haNoi = makeDestinationFromGeo(haNoiGeo, "Ha Noi", currency);
-
-          updateDay(selectedDay, {
-            ...day,
-            destinations: [...day.destinations, hoChiMinh, haNoi],
-            optimizedRoute: [],
-          });
-
-          toast.success('Sample destinations added!');
-          break;
-        }
-
-        case 'optimize-route': {
-          // Trigger route optimization
-          findOptimalRoute();
-          break;
-        }
-
-        default:
-          break;
-      }
-
-      // Clear the action
-      onManualActionComplete();
-    };
-
-    handleAction();
-  }, [manualStepAction, onManualActionComplete, selectedDay, localTripData.days]);
-
-
+  // 3. Utitlity functions
   const handleTripDataChange = (newData: {
     name: string;
     days: DayPlan[];
@@ -513,6 +372,383 @@ export function CustomMode({
     setIsSaving(false);
   };
 
+  const addDayAfter = (dayId: string) => {
+    const dayIndex = localTripData.days.findIndex(d => d.id === dayId);
+    if (dayIndex === -1) return;
+
+    const newDayNumber = dayIndex + 2; // +2 because dayNumber is 1-based and we want to insert after
+    const newDay: DayPlan = {
+      id: String(localTripData.days.length + 1),
+      dayNumber: newDayNumber,
+      destinations: [],
+      optimizedRoute: [],
+    };
+
+    // Insert the new day after the specified day
+    const newDays = [
+      ...localTripData.days.slice(0, dayIndex + 1),
+      newDay,
+      ...localTripData.days.slice(dayIndex + 1),
+    ].map((day, idx) => ({
+      ...day,
+      id: String(idx + 1),
+      dayNumber: idx + 1,
+    }));
+
+    handleTripDataChange({
+      ...localTripData,
+      days: newDays,
+    });
+    setSelectedDay(newDay.id);
+    setViewMode("single");
+  };
+
+  const swapDays = (dayId1: string, dayId2: string) => {
+    const idx1 = localTripData.days.findIndex(d => d.id === dayId1);
+    const idx2 = localTripData.days.findIndex(d => d.id === dayId2);
+    if (idx1 === -1 || idx2 === -1 || idx1 === idx2) return;
+
+    // Copy the days array
+    const newDays = [...localTripData.days];
+    // Swap the two days
+    [newDays[idx1], newDays[idx2]] = [newDays[idx2], newDays[idx1]];
+    // Reassign dayNumber and id to keep them consistent
+    const updatedDays = newDays.map((day, idx) => ({
+      ...day,
+      id: String(idx + 1),
+      dayNumber: idx + 1,
+    }));
+
+    handleTripDataChange({
+      ...localTripData,
+      days: updatedDays,
+    });
+  };
+
+  // 4. Effect hooks
+  // Reset to default view states when User Manual is opened
+  useEffect(() => {
+    if (resetToDefault) {
+      const firstDay = localTripData.days[0];
+
+      setViewMode("single");
+      setIsMapExpanded(false);
+      setRouteGuidancePair(null);
+
+      if (firstDay) {
+        setSelectedDay(firstDay.id);
+      }
+    }
+  }, [resetToDefault, localTripData.days]);
+
+  // Switch to View All Days when a plan is loaded from My Plans
+  useEffect(() => {
+    if (showAllDaysOnLoad) {
+      setViewMode("all");
+      setIsMapExpanded(false);
+      setRouteGuidancePair(null);
+    }
+  }, [showAllDaysOnLoad]);
+
+  // Watch for changes to tripData
+  useEffect(() => {
+    setHasUnsavedChanges(true);
+  }, [tripData]);
+
+  // Automatically adjust number of days based on Start Date and End Date (user input)
+  useEffect(() => {
+    if (startDate && endDate && isDateUserInput) {
+      const daysDifference =
+        differenceInDays(endDate, startDate) + 1;
+
+      if (daysDifference !== localTripData.days.length) {
+        const newDays: DayPlan[] = [];
+
+        for (let i = 0; i < daysDifference; i++) {
+          const existingDay = localTripData.days[i];
+          newDays.push(
+            existingDay
+              ? {
+                ...existingDay,
+                id: String(i + 1),
+                dayNumber: i + 1,
+              }
+              : {
+                id: String(i + 1),
+                dayNumber: i + 1,
+                destinations: [],
+                optimizedRoute: [],
+              },
+          );
+        }
+
+        handleTripDataChange({
+          ...localTripData,
+          days: newDays,
+        });
+        toast.success(
+          `${t('tripAdjusted', lang)} ${daysDifference} ${daysDifference > 1 ? t('days', lang) : t('day', lang)}`,
+        );
+      }
+      setIsDateUserInput(false);
+    }
+  }, [startDate, endDate, isDateUserInput]);
+
+  // Sync End Date when days are manually added/removed
+  useEffect(() => {
+    if (startDate && !isDateUserInput) {
+      const calculatedEndDate = addDays(
+        startDate,
+        localTripData.days.length - 1,
+      );
+      setEndDate(calculatedEndDate);
+    }
+  }, [localTripData.days.length, startDate, isDateUserInput]);
+
+  // Focus the selected day when Calendar opens or date updates
+  useEffect(() => {
+    const selectedEl = document.querySelector(
+      "[aria-selected='true']"
+    ) as HTMLElement | null;
+
+    selectedEl?.focus();
+  }, [startDate, endDate]);
+
+  // Convert all days' costs when currency changes or days change
+  useEffect(() => {
+    const updateConvertedDays = async () => {
+      const result = await convertAllDays(localTripData.days, currency);
+      setConvertedDays(result);
+    };
+    updateConvertedDays();
+  }, [localTripData.days, currency]);
+
+  // 5. Handlers
+  // Handle manual step actions from User Manual
+  useEffect(() => {
+    if (!manualStepAction || !onManualActionComplete) return;
+
+    const handleAction = async () => {
+      switch (manualStepAction) {
+        case 'add-destination': {
+          // Add Ho Chi Minh and Ha Noi as sample destinations
+          const day = localTripData.days.find((d) => d.id === selectedDay);
+          if (!day) break;
+          if (day.destinations.length > 1) break;
+
+          const hoChiMinhGeo = await geocodeDestination("Ho Chi Minh City, Vietnam");
+          const haNoiGeo = await geocodeDestination("Ha Noi, Vietnam");
+
+          if (!hoChiMinhGeo || !haNoiGeo) {
+            toast.error("Failed to geocode sample destinations.");
+            return;
+          }
+
+          const hoChiMinh = makeDestinationFromGeo(hoChiMinhGeo, "Ho Chi Minh City", currency);
+          const haNoi = makeDestinationFromGeo(haNoiGeo, "Ha Noi", currency);
+
+          updateDay(selectedDay, {
+            ...day,
+            destinations: [...day.destinations, hoChiMinh, haNoi],
+            optimizedRoute: [],
+          });
+
+          toast.success('Sample destinations added!');
+          break;
+        }
+
+        case 'optimize-route': {
+          // Trigger route optimization
+          findOptimalRoute();
+          break;
+        }
+
+        case 'create_itinerary': {
+          const result = latestAIResult.itinerary;
+          console.log("AI Itinerary Result:", result);
+          console.log("Itinerary from backend:", result);
+
+          if (result.trip_info) {
+            if (result.trip_info.trip_name) updateTripName(result.trip_info.trip_name);
+            if (result.trip_info.num_people) setMembers(String(result.trip_info.num_people));
+            if (result.trip_info.start_day && !isNaN(Date.parse(result.trip_info.start_day))) {
+              setStartDate(new Date(result.trip_info.start_day));
+            }
+            if (result.trip_info.end_day && !isNaN(Date.parse(result.trip_info.end_day))) {
+              setEndDate(new Date(result.trip_info.end_day));
+            }
+          }
+
+          if (
+            userLocation &&
+            Array.isArray(result.categories) &&
+            (result.valid_starting_point === undefined || result.valid_starting_point === true)
+          ) {
+            const allPlaces = await generatePlaces(result, userLocation);
+            console.log("Fetched places:", allPlaces);
+            setAllPlaces(allPlaces);
+          } else if (result.valid_starting_point === false) {
+            toast.error("Starting point must be Da Lat, Ho Chi Minh City, or Hue, Vietnam.");
+          }
+          break;
+        }
+
+        case 'add_new_day': {
+          addDay();
+          break;
+        }
+
+        case 'add_new_day_after_current': {
+          addDayAfter(selectedDay);
+          break;
+        }
+
+        case 'add_new_day_after_ith': {
+          const dayIndex = latestAIResult.day;
+          if (dayIndex && !isNaN(Number(dayIndex))) {
+            addDayAfter(String(dayIndex));
+          }
+          break;
+        }
+
+        case 'update_trip_name': {
+          const newName = latestAIResult.trip_name;
+          if (newName && typeof newName === "string") {
+            updateTripName(newName);
+          }
+          break;
+        }
+
+        case 'update_members': {
+          const newMembers = latestAIResult.members;
+          if (newMembers && !isNaN(Number(newMembers))) {
+            setMembers(String(newMembers));
+          }
+          break;
+        }
+
+        case 'update_start_date': {
+          const newStartDay = latestAIResult.start_day;
+          if (newStartDay && !isNaN(Date.parse(newStartDay))) {
+            setStartDate(new Date(newStartDay));
+          }
+
+          break;
+        }
+
+        case 'update_end_date': {
+          const newEndDay = latestAIResult.end_day;
+          if (newEndDay && !isNaN(Date.parse(newEndDay))) {
+            setEndDate(new Date(newEndDay));
+          }
+          break;
+        }
+
+        case 'view_all_days': {
+          setViewMode("all");
+          break;
+        }
+
+        case 'delete_current_day': {
+          removeDay(selectedDay);
+          break;
+        }
+
+        case 'delete_all_days': {
+          // Delete days one by one until only one day remains
+          while (localTripData.days.length > 1) {
+            removeDay(localTripData.days[localTripData.days.length - 1].id);
+          }
+          break;
+        }
+
+        case 'swap_day': {
+          const dayId1 = latestAIResult.day1;
+          const dayId2 = latestAIResult.day2;
+          if (dayId1 && dayId2) {
+            swapDays(String(dayId1), String(dayId2));
+          }
+          break;
+        }
+
+        case 'delete_range_of_days': {
+          const startDay = latestAIResult.start_day;
+          const endDay = latestAIResult.end_day;
+          if (startDay && endDay && !isNaN(Number(startDay)) && !isNaN(Number(endDay))) {
+            const startIdx = Number(startDay) - 1;
+            const endIdx = Number(endDay) - 1;
+            const daysToDelete = localTripData.days.slice(startIdx, endIdx + 1);
+            daysToDelete.forEach((day) => {
+              {
+                removeDay(day.id);
+              }
+            });
+          }
+          break;
+        }
+
+        case 'add_new_destination': {
+          const place = latestAIResult.place;
+          if (
+            place &&
+            typeof place === "object" &&
+            place !== null &&
+            place.title &&
+            typeof place.title === "string"
+          ) {
+            const day = localTripData.days.find((d) => d.id === selectedDay);
+            if (!day) break;
+            const destination = {
+              id: place.place_id,
+              name: place.title,
+              address: place.address || "",
+              costs: [{
+                id: `${Date.now()}-0`,
+                amount: place.price || "",
+                detail: "",
+                originalAmount: place.price || "",
+                originalCurrency: currency,
+              }],
+              latitude: place.gps_coordinates.latitude,
+              longitude: place.gps_coordinates.longitude,
+            };
+            updateDay(selectedDay, {
+              ...day,
+              destinations: [...day.destinations, destination],
+              optimizedRoute: [],
+            });
+            break;
+          }
+        }
+
+        case 'extend_map_view': {
+          setIsMapExpanded(true);
+          break;
+        }
+
+        case 'collapse_map_view': {
+          setIsMapExpanded(false);
+          break;
+        }
+
+        case 'find_route_of_pair_ith': {
+          const pairIndex = latestAIResult.pair_index;
+          setViewMode("route-guidance");
+          setRouteSegmentIndex(pairIndex);
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      // Clear the action
+      onManualActionComplete();
+    };
+
+    handleAction();
+  }, [manualStepAction, onManualActionComplete, selectedDay, localTripData.days]);
+
   const handleRouteGuidance = (day: DayPlan, idx: number) => {
     setViewMode("route-guidance");
     setRouteSegmentIndex(idx);
@@ -533,6 +769,8 @@ export function CustomMode({
       />
     );
   }
+
+
 
   return (
     <div className="space-y-6">
@@ -570,32 +808,20 @@ export function CustomMode({
                 // AI generation logic will go here
                 try {
                   // Send the whole preferences text as 'paragraph'
-                  const result = await fetchItineraryWithGroq(preferences);
-                  console.log("Itinerary from backend:", result);
-
-                  if (result.trip_info) {
-                    if (result.trip_info.trip_name) updateTripName(result.trip_info.trip_name);
-                    if (result.trip_info.num_people) setMembers(String(result.trip_info.num_people));
-                    if (result.trip_info.start_day && !isNaN(Date.parse(result.trip_info.start_day))) {
-                      setStartDate(new Date(result.trip_info.start_day));
-                    }
-                    if (result.trip_info.end_day && !isNaN(Date.parse(result.trip_info.end_day))) {
-                      setEndDate(new Date(result.trip_info.end_day));
+                  const result = await detectAndExecuteGroqCommand(preferences);
+                  setLatestAIResult(result);
+                  console.log("AI Generation Result:", result);
+                  if (result.command && onAICommand) {
+                    // Example for delete_saved_plan_ith
+                    if (result.command === 'delete_saved_plan_ith') {
+                      onAICommand(result.command, { planIndex: result.plan_index });
+                    } else if (result.command === 'find_route_of_pair_ith') {
+                      onAICommand(result.command, { pairIndex: result.pair_index });
+                    } else {
+                      // For commands that don't need extra data
+                      onAICommand(result.command);
                     }
                   }
-
-                  if (
-                    userLocation &&
-                    Array.isArray(result.categories) &&
-                    (result.valid_starting_point === undefined || result.valid_starting_point === true)
-                  ) {
-                    const allPlaces = await generatePlaces(result, userLocation);
-                    console.log("Fetched places:", allPlaces);
-                    setAllPlaces(allPlaces);
-                  } else if (result.valid_starting_point === false) {
-                    toast.error("Starting point must be Da Lat, Ho Chi Minh City, or Hue, Vietnam.");
-                  }
-
                 } catch (err) {
                   console.error("Failed to fetch itinerary:", err);
                   toast.error(t('generateFailed', lang));

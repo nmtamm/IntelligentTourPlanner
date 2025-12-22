@@ -5,6 +5,7 @@ import random
 from ..routers.places import get_available_categories, get_types_dict_from_stats
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from groq import Groq
 
 categories_path = os.path.join(os.path.dirname(__file__), "..", "categories.json")
@@ -118,7 +119,8 @@ Paragraph:
 """
 
         response = client.chat.completions.create(
-            model="moonshotai/kimi-k2-instruct-0905",
+            # model="moonshotai/kimi-k2-instruct-0905",
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=[
                 {
                     "role": "system",
@@ -170,3 +172,271 @@ def list_all_tourist_categories():
         return category_names
     except Exception as e:
         return {"error": str(e)}
+
+
+def load_commands():
+    command_path = os.path.join(os.path.dirname(__file__), "..", "commands.json")
+    with open(command_path, "r", encoding="utf-8") as f:
+        return json.load(f)["commands"]
+
+
+def detect_and_execute_command(client: Groq, user_prompt: str, db: Session) -> dict:
+    commands = load_commands()
+    # Prepare a list of natural expressions and descriptions for the prompt
+    command_expressions = [
+        f'- "{cmd["natural_expression"]}": {cmd.get("description", "")}'
+        for cmd in commands
+    ]
+    natural_to_name = {cmd["natural_expression"]: cmd["name"] for cmd in commands}
+
+    # Build a prompt for Groq to classify the command
+    groq_prompt = f"""
+You are an intelligent assistant for a travel planning website.
+Given the user's instruction, classify it as one of the following actions by natural expression only (no description, no extra text):
+
+{chr(10).join(command_expressions)}
+
+If the instruction does not match any action, return "unknown".
+
+User instruction:
+{user_prompt}
+
+GUIDELINES:
+1. If the user mentions planning, visiting places, or asking for recommendations for a city/trip, classify it as 'create itinerary'.
+2. If the user provides multiple pieces of information (dates, destination), pick the primary action intended.
+3. Return ONLY a JSON object with the key "natural_expression".
+
+Return your answer as a JSON object: {{"natural_expression": "<expression>"}}
+"""
+
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[
+            {
+                "role": "system",
+                "content": "Classify the user's instruction as a natural language action.",
+            },
+            {"role": "user", "content": groq_prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+
+    try:
+        result = json.loads(response.choices[0].message.content)
+        print("Groq Command Detection Result:", result)
+        natural_expression = result.get("natural_expression", "unknown")
+    except Exception:
+        return {"error": "Could not parse command from LLM response."}
+
+    # Map the detected natural expression back to the internal command name
+    command = natural_to_name.get(natural_expression, "unknown")
+
+    if command == "create_itinerary":
+        categories = list_tourist_recommendations(client, user_prompt, db)
+        return {"command": "create_itinerary", "itinerary": categories}
+    elif command == "update_trip_name":
+        info = extract_trip_info(client, user_prompt)
+        return {"command": command, "trip_name": info.get("trip_name", "")}
+    elif command == "update_members":
+        info = extract_trip_info(client, user_prompt)
+        return {"command": command, "members": info.get("members", 0)}
+    elif command == "update_start_date":
+        info = extract_trip_info(client, user_prompt)
+        return {"command": command, "start_day": info.get("start_day", "")}
+    elif command == "update_end_date":
+        info = extract_trip_info(client, user_prompt)
+        return {"command": command, "end_day": info.get("end_day", "")}
+    elif command == "swap_day":
+        info = swap_day(client, user_prompt)
+        return {
+            "command": command,
+            "day1": info.get("day1", 0),
+            "day2": info.get("day2", 0),
+        }
+    elif command == "add_day_after_ith_day":
+        info = add_new_day_after_ith_day(client, user_prompt)
+        return {"command": command, "day": info.get("day", 0)}
+    elif command == "delete_range_of_days":
+        info = delete_day_range(client, user_prompt)
+        return {
+            "command": command,
+            "start_day": info.get("start_day", 0),
+            "end_day": info.get("end_day", 0),
+        }
+    elif command == "add_new_destination":
+        info = add_new_destination(client, user_prompt, db)
+        return {
+            "command": command,
+            "destination": info.get("destination", ""),
+            "place": info.get("place", None),
+        }
+    elif command == "delete_saved_plan_ith":
+        info = delete_saved_plan_ith(client, user_prompt)
+        return {"command": command, "plan_index": info.get("plan_index", 0)}
+    elif command == "find_route_of_pair_ith":
+        info = find_route_of_pair_ith(client, user_prompt)
+        return {"command": command, "pair_index": info.get("pair_index", 0)}
+    elif command in [cmd["name"] for cmd in commands]:
+        return {"command": command}
+    else:
+        return {"error": "No matching command found."}
+
+
+def extract_trip_info(client: Groq, user_prompt: str) -> dict:
+    prompt = f"""
+From the following instruction, extract the trip name and number of members if mentioned.
+Return as JSON: {{"trip_name": "...", "members": ..., "start_day": ..., "end_day": ...}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract trip name and members."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return {}
+
+
+def swap_day(client: Groq, user_prompt: str) -> dict:
+    prompt = f"""
+From the following instruction, extract the two day numbers to be swapped in the itinerary.
+Return as JSON: {{"day1": ..., "day2": ...}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract day numbers to swap."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return {}
+
+
+def add_new_day_after_ith_day(client: Groq, user_prompt: str) -> dict:
+    prompt = f"""
+From the following instruction, extract the day number after which a new day should be added in the itinerary.
+Return as JSON: {{"day": ...}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract day number to add a new day after."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return {}
+
+
+def delete_day_range(client: Groq, user_prompt: str) -> dict:
+    prompt = f"""
+From the following instruction, extract the start and end day numbers to be deleted in the itinerary.
+Return as JSON: {{"start_day": ..., "end_day": ...}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract day range to delete."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return {}
+
+
+def add_new_destination(client: Groq, user_prompt: str, db: Session) -> dict:
+    prompt = f"""
+From the following instruction, extract the destination to be added to the itinerary.
+Return as JSON: {{"destination": "..."}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract destination to add."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        result = json.loads(response.choices[0].message.content)
+        destination = result.get("destination", "").strip()
+        if not destination:
+            return {"error": "No destination found in prompt."}
+
+        # Use the manualsearch function logic to search for the place by name
+        sql = text("SELECT * FROM places_search WHERE title MATCH :q LIMIT 1")
+        db_result = db.execute(sql, {"q": destination}).mappings().first()
+        if db_result:
+            # Optionally, get full place info from places table by place_id
+            place_id = db_result.get("place_id")
+            if place_id:
+                place_sql = text("SELECT * FROM places WHERE place_id = :id")
+                place_row = db.execute(place_sql, {"id": place_id}).fetchone()
+                if place_row:
+                    columns = [col.name for col in db_result.keys()]
+                    place = dict(place_row)
+                    return {"destination": destination, "place": place}
+            return {"destination": destination, "place": dict(db_result)}
+        else:
+            return {"destination": destination, "place": None}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def delete_saved_plan_ith(client: Groq, user_prompt: str) -> dict:
+    prompt = f"""
+From the following instruction, extract the index of the saved plan to be deleted.
+Return as JSON: {{"plan_index": ...}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract saved plan index to delete."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return {}
+
+
+def find_route_of_pair_ith(client: Groq, user_prompt: str) -> dict:
+    prompt = f"""
+From the following instruction, extract the index of the pair of destinations whose route is to be displayed.
+Return as JSON: {{"pair_index": ...}}.
+Instruction: {user_prompt}
+"""
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        messages=[
+            {"role": "system", "content": "Extract pair index for route display."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return {}

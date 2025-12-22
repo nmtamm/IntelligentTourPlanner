@@ -18,9 +18,13 @@ interface SavedPlansProps {
   onCreateNew: () => void;
   currency: string;
   language: 'EN' | 'VI';
+  AICommand: string | null;
+  AICommandPayload?: any;
+  onAICommand?: (command: string) => void;
+  onAIActionComplete?: () => void;
 }
 
-export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, currency, language }: SavedPlansProps) {
+export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, currency, language, AICommand, AICommandPayload, onAICommand, onAIActionComplete }: SavedPlansProps) {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const currencySymbol = currency === 'USD' ? 'USD' : 'VND';
@@ -108,6 +112,58 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
       setError(t('planDeletedFailed', lang));
     }
   };
+
+  const deleteAllSavedPlans = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error(t('loginToDeletePlans', lang));
+      setError(t('loginToDeletePlans', lang));
+      return;
+    }
+    try {
+      // Option 1: If you have a backend API for bulk delete
+      // await deleteAllTrips(token);
+
+      // Option 2: Delete each plan one by one
+      for (const plan of plans) {
+        await deleteTrip(plan.id, token);
+      }
+      loadPlans();
+      toast.success('All plans deleted!');
+    } catch (error) {
+      toast.error(t('planDeletedFailed', lang));
+      setError(t('planDeletedFailed', lang));
+    }
+  };
+
+  useEffect(() => {
+    if (!AICommand) return;
+
+    const handleAIAction = async () => {
+      switch (AICommand) {
+        case 'delete_all_saved_plans':
+          await deleteAllSavedPlans();
+          break;
+        case 'delete_saved_plan_ith': {
+          // Use the plan index from AICommandPayload, default to 0 if not provided
+          const planIndex = AICommandPayload?.planIndex ?? 0;
+          const planId = plans[planIndex]?.id;
+          if (planId) {
+            await handleDeletePlan(planId, new Event('click'));
+          } else {
+            toast.error('Plan not found!');
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      if (onAIActionComplete) onAIActionComplete();
+    };
+
+    handleAIAction();
+    // eslint-disable-next-line
+  }, [AICommand]);
 
   return (
     <div className="space-y-6">

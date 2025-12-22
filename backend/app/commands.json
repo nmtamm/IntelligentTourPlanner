@@ -1,0 +1,134 @@
+{
+    "commands": [
+        {
+            "name": "open_user_manual",
+            "natural_expression": "open the user manual",
+            "description": "Open the user manual or help guide."
+        },
+        {
+            "name": "change_language",
+            "natural_expression": "change language",
+            "description": "Change the application's language."
+        },
+        {
+            "name": "change_currency",
+            "natural_expression": "change currency",
+            "description": "Switch the currency used for cost calculations."
+        },
+        {
+            "name": "update_trip_name",
+            "natural_expression": "update trip name",
+            "description": "Update the name of the current trip."
+        },
+        {
+            "name": "update_members",
+            "natural_expression": "update number of members",
+            "description": "Change the number of members in the trip."
+        },
+        {
+            "name": "update_start_date",
+            "natural_expression": "update start date",
+            "description": "Set or update the trip's start date."
+        },
+        {
+            "name": "update_end_date",
+            "natural_expression": "update end date",
+            "description": "Set or update the trip's end date."
+        },
+        {
+            "name": "add_new_day",
+            "natural_expression": "add new day",
+            "description": "Add a new day to the trip itinerary."
+        },
+        {
+            "name": "swap_day",
+            "natural_expression": "swap days",
+            "description": "Swap the order of two days in the itinerary."
+        },
+        {
+            "name": "add_new_day_after_current",
+            "natural_expression": "add new day after current",
+            "description": "Add a new day after the current day in the itinerary."
+        },
+        {
+            "name": "add_new_day_after_ith",
+            "natural_expression": "add new day after specific day",
+            "description": "Add a new day after the specified day in the itinerary."
+        },
+        {
+            "name": "view_all_days",
+            "natural_expression": "view all days",
+            "description": "View an overview of all days in the trip."
+        },
+        {
+            "name": "delete_current_day",
+            "natural_expression": "delete current day",
+            "description": "Delete the currently selected day from the itinerary."
+        },
+        {
+            "name": "delete_all_days",
+            "natural_expression": "delete all days",
+            "description": "Remove all days from the itinerary."
+        },
+        {
+            "name": "delete_range_of_days",
+            "natural_expression": "delete range of days",
+            "description": "Delete a specified range of days from the itinerary."
+        },
+        {
+            "name": "optimal-route",
+            "natural_expression": "find optimal route",
+            "description": "Find the most efficient route for the trip."
+        },
+        {
+            "name": "add_new_destination",
+            "natural_expression": "add new destination",
+            "description": "Add a new destination to the itinerary."
+        },
+        {
+            "name": "route-list",
+            "natural_expression": "show route list",
+            "description": "Display the list of route segments for the trip."
+        },
+        {
+            "name": "map-view",
+            "natural_expression": "show map view",
+            "description": "Show the map view of the trip's destinations and routes."
+        },
+        {
+            "name": "extend_map_view",
+            "natural_expression": "extend map view",
+            "description": "Expand or extend the map view for better visualization."
+        },
+        {
+            "name": "collapse_map_view",
+            "natural_expression": "collapse map view",
+            "description": "Collapse the map view to its original size."
+        },
+        {
+            "name": "find_route_of_pair_ith",
+            "natural_expression": "find route between two destinations",
+            "description": "Find the route between a specific pair of destinations."
+        },
+        {
+            "name": "show_saved_plan",
+            "natural_expression": "show saved plans",
+            "description": "Display the list of saved trip plans."
+        },
+        {
+            "name": "delete_all_saved_plans",
+            "natural_expression": "delete all saved plans",
+            "description": "Delete all saved trip plans."
+        },
+        {
+            "name": "delete_saved_plan_ith",
+            "natural_expression": "delete specific saved plan",
+            "description": "Delete a specific saved trip plan."
+        },
+        {
+            "name": "create_itinerary",
+            "natural_expression": "create itinerary",
+            "description": "Generate a detailed itinerary for the trip."
+        }
+    ]
+}
