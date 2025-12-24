@@ -15,3 +15,4 @@ email-validator
 dotenv
 polyline
 googletrans
+groq

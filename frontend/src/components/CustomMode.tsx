@@ -43,6 +43,7 @@ import { makeDestinationFromGeo } from "../utils/destinationFactory";
 import { t } from "../utils/translations";
 import { ErrorNotification } from "./ErrorNotification";
 import { sendLocationToBackend } from "../utils/geolocation";
+import { fetchItineraryWithGroq } from "../utils/groq";
 
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
@@ -569,7 +570,7 @@ export function CustomMode({
                 // AI generation logic will go here
                 try {
                   // Send the whole preferences text as 'paragraph'
-                  const result = await fetchItinerary({ paragraph: preferences });
+                  const result = await fetchItineraryWithGroq(preferences);
                   console.log("Itinerary from backend:", result);
 
                   if (result.trip_info) {

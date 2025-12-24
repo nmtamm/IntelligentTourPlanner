@@ -20,6 +20,7 @@ from .routers import serp_router
 from .routers import gtranslate_router
 from .routers import places
 from .routers import categories
+from .routers import groq_router
 
 app = FastAPI(debug=True)
 
@@ -49,6 +50,7 @@ app.include_router(serp_router.router)
 app.include_router(gtranslate_router.router)
 app.include_router(places.router)
 app.include_router(categories.router)
+app.include_router(groq_router.router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

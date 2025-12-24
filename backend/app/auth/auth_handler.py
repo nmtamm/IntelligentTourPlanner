@@ -7,9 +7,9 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from ..database import get_db
-from ..schemas import TokenData
-from ..models import User
+from ..user_database import get_db
+from ..user_schemas import TokenData
+from ..user_models import User
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -22,6 +22,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 router = APIRouter()
 
+
 def verify_password(plain_password, hashed_password):
     # Try bcrypt first
     try:
@@ -29,6 +30,7 @@ def verify_password(plain_password, hashed_password):
     except:
         # Fallback to simple hash for demo user (not secure - for testing only!)
         import hashlib
+
         simple_hash = hashlib.sha256(plain_password.encode()).hexdigest()
         return simple_hash == hashed_password
 
@@ -37,6 +39,7 @@ def get_password_hash(password):
     # Use SHA256 for Python 3.13 compatibility (not secure for production!)
     # TODO: Fix bcrypt compatibility or use Python 3.11/3.12
     import hashlib
+
     return hashlib.sha256(password.encode()).hexdigest()
 
 
@@ -65,7 +68,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

@@ -182,7 +182,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
                   <div className="flex items-center gap-2 text-gray-600">
                     <Wallet className="w-4 h-4" />
                     {isApprox
-                      ? `${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()}`
+                      ? `${minTotal.toLocaleString()} \u2013 ${maxTotal.toLocaleString()}`
                       : minTotal.toLocaleString()
                     } {currencySymbol}
                   </div>
