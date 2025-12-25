@@ -149,6 +149,8 @@ export default function App() {
     else if (command === "change_language") setLanguage(language === "EN" ? "VI" : "EN");
     else if (command === "change_currency") setCurrency(currency === "USD" ? "VND" : "USD");
     else if (command === "show_saved_plan" && isLoggedIn) setShowSavedPlans(true);
+    else if (command === "delete_all_saved_plans" || command === "delete_saved_plan_ith")
+      setShowSavedPlans(true);
 
     // For commands that need to be passed down (with or without payload)
     setAICommand(command);
@@ -260,7 +262,7 @@ export default function App() {
               onCreateNew={handleCreateNewPlan}
               currency={currency}
               language={language}
-              AICommand={AICommand}
+              AICommand={mergedAction}
               onAICommand={handleAICommand}
               onAIActionComplete={() => {
                 setAICommand(null);

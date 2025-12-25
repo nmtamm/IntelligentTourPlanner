@@ -52,7 +52,7 @@ def list_tourist_recommendations(
         {paragraph}
         """
         temp_response = client.chat.completions.create(
-            model="moonshotai/kimi-k2-instruct-0905",
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=[
                 {
                     "role": "system",
@@ -119,8 +119,8 @@ Paragraph:
 """
 
         response = client.chat.completions.create(
-            # model="moonshotai/kimi-k2-instruct-0905",
-            model="meta-llama/llama-4-maverick-17b-128e-instruct",
+            model="moonshotai/kimi-k2-instruct-0905",
+            # model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=[
                 {
                     "role": "system",
@@ -183,10 +183,7 @@ def load_commands():
 def detect_and_execute_command(client: Groq, user_prompt: str, db: Session) -> dict:
     commands = load_commands()
     # Prepare a list of natural expressions and descriptions for the prompt
-    command_expressions = [
-        f'- "{cmd["natural_expression"]}": {cmd.get("description", "")}'
-        for cmd in commands
-    ]
+    command_expressions = [f'{cmd["natural_expression"]}' for cmd in commands]
     natural_to_name = {cmd["natural_expression"]: cmd["name"] for cmd in commands}
 
     # Build a prompt for Groq to classify the command
@@ -253,7 +250,8 @@ Return your answer as a JSON object: {{"natural_expression": "<expression>"}}
             "day1": info.get("day1", 0),
             "day2": info.get("day2", 0),
         }
-    elif command == "add_day_after_ith_day":
+    elif command == "add_new_day_after_ith":
+        print("Executing add_day_after_ith_day command")
         info = add_new_day_after_ith_day(client, user_prompt)
         return {"command": command, "day": info.get("day", 0)}
     elif command == "delete_range_of_days":
@@ -325,21 +323,30 @@ Instruction: {user_prompt}
 def add_new_day_after_ith_day(client: Groq, user_prompt: str) -> dict:
     prompt = f"""
 From the following instruction, extract the day number after which a new day should be added in the itinerary.
+Convert all ordinal words (first, second, third) or relative terms into an integer
 Return as JSON: {{"day": ...}}.
 Instruction: {user_prompt}
 """
-    response = client.chat.completions.create(
-        model="meta-llama/llama-4-maverick-17b-128e-instruct",
-        messages=[
-            {"role": "system", "content": "Extract day number to add a new day after."},
-            {"role": "user", "content": prompt},
-        ],
-        response_format={"type": "json_object"},
-    )
     try:
-        return json.loads(response.choices[0].message.content)
-    except Exception:
-        return {}
+        response = client.chat.completions.create(
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Extract day number to add a new day after.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+        )
+        result = json.loads(response.choices[0].message.content)
+
+        if result.get("day") is not None:
+            print("Add New Day After Ith Day Result:", result)
+            return result
+        return {"Error": "Could not extract day number."}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def delete_day_range(client: Groq, user_prompt: str) -> dict:

@@ -31,6 +31,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
   const lang = language.toLowerCase() as 'en' | 'vi';
   const [error, setError] = useState<string | null>(null);
 
+
   useEffect(() => {
     loadPlans();
   }, [currentUser, currency]);
@@ -121,11 +122,9 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
       return;
     }
     try {
-      // Option 1: If you have a backend API for bulk delete
-      // await deleteAllTrips(token);
-
-      // Option 2: Delete each plan one by one
+      console.log('Deleting all saved plans...');
       for (const plan of plans) {
+        console.log(`Deleting plan ID: ${plan.id}`);
         await deleteTrip(plan.id, token);
       }
       loadPlans();
@@ -137,7 +136,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
   };
 
   useEffect(() => {
-    if (!AICommand) return;
+    if (!AICommand || loading || plans.length === 0) return;
 
     const handleAIAction = async () => {
       switch (AICommand) {
@@ -163,7 +162,7 @@ export function SavedPlans({ currentUser, onBack, onLoadPlan, onCreateNew, curre
 
     handleAIAction();
     // eslint-disable-next-line
-  }, [AICommand]);
+  }, [AICommand, plans, loading]);
 
   return (
     <div className="space-y-6">

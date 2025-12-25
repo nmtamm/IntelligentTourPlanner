@@ -15,3 +15,21 @@ export function parseAmount(amount: string | number) {
     const num = parseFloat(cleaned);
     return isNaN(num) ? { min: 0, max: 0, isApprox: false } : { min: num, max: num, isApprox: false };
 }
+
+export function detectCurrencyAndNormalizePrice(price: any, defaultCurrency: "USD" | "VND") {
+    let detectedCurrency: "USD" | "VND" = defaultCurrency;
+    let symbol = "";
+    let normalizedPrice = price;
+
+    if (typeof price === "string") {
+        symbol = price.trim().charAt(0);
+        if (symbol === "₫") {
+            detectedCurrency = "VND";
+        } else if (symbol === "$") {
+            detectedCurrency = "USD";
+        }
+        normalizedPrice = price.replace(/^[^\d\-]+/, '').trim();
+    }
+
+    return { detectedCurrency, normalizedPrice };
+}

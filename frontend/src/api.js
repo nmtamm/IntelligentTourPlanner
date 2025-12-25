@@ -117,6 +117,7 @@ const updateTrip = async (tripId, tripData, token) => {
 
 const deleteTrip = async (tripId, token) => {
     try {
+        console.log(`Deleting trip with ID: ${tripId}`);
         await axios.delete(`${API_URL}/api/trips/${tripId}`, {
             headers: {
                 Authorization: `Bearer ${token}`

@@ -5,9 +5,10 @@ import { Input } from './ui/input';
 import { Plus, Trash2, DollarSign, Loader2 } from 'lucide-react';
 import { DayPlan, Destination, CostItem } from '../types';
 import { toast } from 'sonner';
-import { parseAmount } from '../utils/parseAmount';
+import { parseAmount, detectCurrencyAndNormalizePrice } from '../utils/parseAmount';
 import { t } from '../utils/translations';
 import { handleSearch, getPlaceById } from '../utils/serp';
+import { data } from 'react-router-dom';
 
 interface DayViewProps {
   day: DayPlan;
@@ -43,20 +44,11 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
   useEffect(() => {
     if (generatedPlaces && generatedPlaces.length > 0) {
-      let detectedCurrency = currency;
+      let currencyChanged = false;
       const newDestinations = generatedPlaces.map((place, idx) => {
-        let price = place.price;
-        let symbol = "";
-        if (typeof price === "string") {
-          // Extract first non-space character (currency symbol)
-          symbol = price.trim().charAt(0);
-          if (symbol === "₫" && currency !== "VND") {
-            detectedCurrency = "VND";
-          } else if (symbol === "$" && currency !== "USD") {
-            detectedCurrency = "USD";
-          }
-          // Remove leading currency symbols and spaces
-          price = price.replace(/^[^\d\-]+/, '').trim();
+        const { detectedCurrency, normalizedPrice } = detectCurrencyAndNormalizePrice(place.price, currency);
+        if (detectedCurrency !== currency) {
+          currencyChanged = true;
         }
         return {
           id: `${Date.now()}-${idx}`,
@@ -64,9 +56,9 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
           address: place.address || "",
           costs: [{
             id: `${Date.now()}-${idx}`,
-            amount: price,
+            amount: normalizedPrice,
             detail: "",
-            originalAmount: price,
+            originalAmount: normalizedPrice,
             originalCurrency: detectedCurrency,
           }],
           latitude: place.gps_coordinates.latitude,
@@ -75,7 +67,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
       });
 
       // If currency changed, notify parent
-      if (detectedCurrency !== currency) {
+      if (currencyChanged) {
         onCurrencyToggle();
       }
 
@@ -138,16 +130,20 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
 
     // const destination = makeDestinationFromGeo(geo, newDestinationName, currency);
 
+    const { detectedCurrency, normalizedPrice } = detectCurrencyAndNormalizePrice(place.price, currency);
+    if (detectedCurrency !== currency) {
+      onCurrencyToggle();
+    }
     const destination = {
       id: place.place_id,
       name: place.title,
       address: place.address || "",
       costs: [{
         id: `${Date.now()}-0`,
-        amount: place.price || "",
+        amount: normalizedPrice,
         detail: "",
-        originalAmount: place.price || "",
-        originalCurrency: currency,
+        originalAmount: normalizedPrice,
+        originalCurrency: detectedCurrency,
       }],
       latitude: place.gps_coordinates.latitude,
       longitude: place.gps_coordinates.longitude,

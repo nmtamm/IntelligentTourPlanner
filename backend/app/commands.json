@@ -76,7 +76,7 @@
             "description": "Delete a specified range of days from the itinerary."
         },
         {
-            "name": "optimal-route",
+            "name": "optimize-route",
             "natural_expression": "find optimal route",
             "description": "Find the most efficient route for the trip."
         },

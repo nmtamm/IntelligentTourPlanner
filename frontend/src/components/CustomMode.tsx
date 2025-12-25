@@ -599,12 +599,14 @@ export function CustomMode({
         }
 
         case 'add_new_day_after_current': {
+          console.log("Adding new day after current day:", selectedDay);
           addDayAfter(selectedDay);
           break;
         }
 
         case 'add_new_day_after_ith': {
           const dayIndex = latestAIResult.day;
+          console.log("Adding new day after ith day", dayIndex);
           if (dayIndex && !isNaN(Number(dayIndex))) {
             addDayAfter(String(dayIndex));
           }
@@ -655,10 +657,17 @@ export function CustomMode({
         }
 
         case 'delete_all_days': {
-          // Delete days one by one until only one day remains
-          while (localTripData.days.length > 1) {
-            removeDay(localTripData.days[localTripData.days.length - 1].id);
-          }
+          const newDay: DayPlan = {
+            id: "1",
+            dayNumber: 1,
+            destinations: [],
+            optimizedRoute: [],
+          };
+          handleTripDataChange({
+            ...localTripData,
+            days: [newDay],
+          });
+          setSelectedDay("1");
           break;
         }
 
@@ -674,15 +683,23 @@ export function CustomMode({
         case 'delete_range_of_days': {
           const startDay = latestAIResult.start_day;
           const endDay = latestAIResult.end_day;
+          console.log("Deleting range of days:", startDay, endDay);
           if (startDay && endDay && !isNaN(Number(startDay)) && !isNaN(Number(endDay))) {
             const startIdx = Number(startDay) - 1;
             const endIdx = Number(endDay) - 1;
-            const daysToDelete = localTripData.days.slice(startIdx, endIdx + 1);
-            daysToDelete.forEach((day) => {
-              {
-                removeDay(day.id);
-              }
+            const newDays = localTripData.days
+              .filter((_, idx) => idx < startIdx || idx > endIdx)
+              .map((day, idx) => ({
+                ...day,
+                id: String(idx + 1),
+                dayNumber: idx + 1,
+              }));
+            handleTripDataChange({
+              ...localTripData,
+              days: newDays,
             });
+            // Optionally update selectedDay if needed
+            if (newDays.length > 0) setSelectedDay(newDays[0].id);
           }
           break;
         }
@@ -1141,7 +1158,7 @@ export function CustomMode({
         {/* Left: Day/Days View */}
         {!isMapExpanded && (
           <div className="space-y-4">
-            {viewMode === "single" && currentDay ? (
+            {viewMode === "single" && currentDay && convertedDays.find(d => d.id === selectedDay) ? (
               <DayView
                 day={convertedDays.find(d => d.id === selectedDay)!}
                 onUpdate={(updatedDay) =>
