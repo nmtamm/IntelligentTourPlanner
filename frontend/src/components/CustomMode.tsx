@@ -44,7 +44,7 @@ import { t } from "../utils/translations";
 import { ErrorNotification } from "./ErrorNotification";
 import { sendLocationToBackend } from "../utils/geolocation";
 import { fetchItineraryWithGroq, detectAndExecuteGroqCommand } from "../utils/groq";
-
+import { parseAmount, detectCurrencyAndNormalizePrice } from "../utils/parseAmount"
 interface CustomModeProps {
   tripData: { name: string; days: DayPlan[] };
   onUpdate: (data: { name: string; days: DayPlan[] }) => void;
@@ -235,9 +235,9 @@ export function CustomMode({
     setIsEstimating(false);
   };
 
-  const findOptimalRoute = async () => {
+  const findOptimalRoute = async (destinations: { latitude: number; longitude: number; name: string }[]) => {
     const day = localTripData.days.find((d) => d.id === selectedDay);
-    if (!day || day.destinations.length < 1) {
+    if (!day || !destinations || destinations.length < 1) {
       toast.error(t('addDestinationsFirst', lang));
       setError(t('addDestinationsFirst', lang));
       return;
@@ -255,7 +255,7 @@ export function CustomMode({
           name: "User Location",
         }
         : null,
-      ...day.destinations.map(d => ({
+      ...destinations.map(d => ({
         lat: d.latitude,
         lon: d.longitude,
         name: d.name,
@@ -281,8 +281,24 @@ export function CustomMode({
       };
     });
 
+    const reorderedDestinations = optimizedRoute.map(opt =>
+      destinations.find(
+        d =>
+          d.latitude === opt.latitude &&
+          d.longitude === opt.longitude &&
+          d.name === opt.name
+      )
+    ).filter(Boolean); // Remove any unmatched
+
+    console.log("Optimized Route: %O", optimizedRoute);
+
+    for (let d in reorderedDestinations) {
+      console.log("Reordered Destinations: %O", reorderedDestinations[d]);
+    }
+
     updateDay(selectedDay, {
       ...day,
+      destinations: reorderedDestinations,
       optimizedRoute,
       routeDistanceKm: optimized.distance_km,
       routeDurationMin: optimized.duration_min,
@@ -290,6 +306,7 @@ export function CustomMode({
       routeInstructions: optimized.instructions,
       routeSegmentGeometries: optimized.segment_geometries,
     });
+
     toast.success(t('routeOptimized', lang));
     setIsOptimizing(false);
   };
@@ -559,7 +576,10 @@ export function CustomMode({
 
         case 'optimize-route': {
           // Trigger route optimization
-          findOptimalRoute();
+          const day = localTripData.days.find((d) => d.id === selectedDay);
+          if (day && day.destinations.length > 0) {
+            await findOptimalRoute(day.destinations);
+          }
           break;
         }
 
@@ -586,7 +606,27 @@ export function CustomMode({
           ) {
             const allPlaces = await generatePlaces(result, userLocation);
             console.log("Fetched places:", allPlaces);
-            setAllPlaces(allPlaces);
+            const mappedPlaces = allPlaces.map(place => {
+              const { detectedCurrency, normalizedPrice } = detectCurrencyAndNormalizePrice(place.price, currency);
+              if (detectedCurrency !== currency) {
+                onCurrencyToggle();
+              }
+              return {
+                id: place.place_id,
+                name: place.title,
+                address: place.address || "",
+                costs: [{
+                  id: `${Date.now()}-0`,
+                  amount: normalizedPrice,
+                  detail: "",
+                  originalAmount: normalizedPrice,
+                  originalCurrency: detectedCurrency,
+                }],
+                latitude: place.gps_coordinates.latitude,
+                longitude: place.gps_coordinates.longitude,
+              };
+            });
+            findOptimalRoute(mappedPlaces);
           } else if (result.valid_starting_point === false) {
             toast.error("Starting point must be Da Lat, Ho Chi Minh City, or Hue, Vietnam.");
           }
@@ -1107,7 +1147,12 @@ export function CustomMode({
             <Button
               variant="outline"
               size="sm"
-              onClick={findOptimalRoute}
+              onClick={() => {
+                const day = localTripData.days.find((d) => d.id === selectedDay);
+                if (day && day.destinations.length > 0) {
+                  findOptimalRoute(day.destinations);
+                }
+              }}
               disabled={isOptimizing}
               data-tutorial="optimize-route"
             >

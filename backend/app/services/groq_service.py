@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from groq import Groq
 
-categories_path = os.path.join(os.path.dirname(__file__), "..", "categories.json")
-with open(categories_path, "r", encoding="utf-8") as f:
-    CATEGORIES = json.load(f)
+# categories_path = os.path.join(os.path.dirname(__file__), "..", "categories.json")
+# with open(categories_path, "r", encoding="utf-8") as f:
+#     CATEGORIES = json.load(f)
 
 
 class TripInfo(BaseModel):
@@ -43,32 +43,48 @@ def list_tourist_recommendations(
         # First, try to extract the city name from the paragraph using Groq (or set a default)
         temp_prompt = f"""
         From the following paragraph, extract the desired starting point city (if mentioned).
+        **Validation requirement:**  
+        If the starting point is not one of the following cities (accepting all common spellings, abbreviations, and Vietnamese tone/case variations): 
+        - "Ho Chi Minh City", "HCMC", "Saigon", "Thành phố Hồ Chí Minh", "TP.HCM"
+        - "Da Lat", "Dalat", "Đà Lạt", "đà lạt", "Đà lạt"
+        - "Hue", "Huế", "huế"
+        (with or without ', Vietnam'), set a field `valid_starting_point` to `false` and do not generate any plan.  
+        Otherwise, set `valid_starting_point` to `true` and always format the starting point as '<city>, Vietnam'.
+        For the field `starting_point`, always return one of the following exact values:
+        - "HCMC, Vietnam"
+        - "Dalat, Vietnam"
+        - "Hue, Vietnam"
+        Do not use any other spelling, abbreviation, or format. If the city is not one of these, set `valid_starting_point` to `false`.
         Return your answer as a JSON object with a single field: "starting_point".
-
         Example:
         {{"starting_point": "HCMC, Vietnam"}}
 
         Paragraph:
         {paragraph}
         """
-        temp_response = client.chat.completions.create(
-            model="meta-llama/llama-4-maverick-17b-128e-instruct",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Extract the starting point city from the paragraph.",
-                },
-                {"role": "user", "content": temp_prompt},
-            ],
-            response_format={"type": "json_object"},
-        )
         try:
+            temp_response = client.chat.completions.create(
+                model="meta-llama/llama-4-maverick-17b-128e-instruct",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Extract the starting point city from the paragraph.",
+                    },
+                    {"role": "user", "content": temp_prompt},
+                ],
+                response_format={"type": "json_object"},
+            )
             temp_data = json.loads(temp_response.choices[0].message.content)
             city_name = temp_data.get("starting_point", "HCMC, Vietnam").strip()
-        except Exception:
+            print("Extracted city_name:", city_name)
+        except Exception as model_exc:
+            print("Model call failed:", model_exc)
             city_name = "HCMC, Vietnam"
 
-        available_types_dict = get_types_dict_from_stats(city_name, db)
+        try:
+            available_types_dict = get_types_dict_from_stats(city_name, db)
+        except Exception as type_exc:
+            print("Type extraction failed:", type_exc)
 
         prompt = f"""
 Here is a list of categories for tourist locations. Each category contains an item with a "name" and an "id":
@@ -89,19 +105,6 @@ From the following paragraph, extract the following information:
     - If the user says "ending on 15th December" and wants a 3-day trip, set end_day to "YYYY-12-15" and start_day to "YYYY-12-13", where YYYY is the **current year (now: {datetime.datetime.now().year})**.
 - If the user does not specify any dates, choose a time interval that is 2 or 3 days long, starting about 1 or 2 weeks from the current date, and use the **current year ({datetime.datetime.now().year})**.
 - Never set the same value for both start and end date unless the trip is explicitly for one day.
-
-**Validation requirement:**  
-If the starting point is not one of the following cities (accepting all common spellings, abbreviations, and Vietnamese tone/case variations): 
-- "Ho Chi Minh City", "HCMC", "Saigon", "Thành phố Hồ Chí Minh", "TP.HCM"
-- "Da Lat", "Dalat", "Đà Lạt", "đà lạt", "Đà lạt"
-- "Hue", "Huế", "huế"
-(with or without ', Vietnam'), set a field `valid_starting_point` to `false` and do not generate any plan.  
-Otherwise, set `valid_starting_point` to `true` and always format the starting point as '<city>, Vietnam'.
-For the field `starting_point`, always return one of the following exact values:
-- "HCMC, Vietnam"
-- "Dalat, Vietnam"
-- "Hue, Vietnam"
-Do not use any other spelling, abbreviation, or format. If the city is not one of these, set `valid_starting_point` to `false`.
 
 **Date formatting requirement:**  
 For the fields `start_day` and `end_day`, always return dates in ISO format: "YYYY-MM-DD" (e.g., "2024-06-10").  
@@ -144,9 +147,6 @@ Paragraph:
         if not result_dict.get("valid_starting_point", True):
             return {"error": "Invalid starting point"}
 
-        city_name = result.starting_point.strip()
-        available_types_dict = get_types_dict_from_stats(city_name, db)
-
         filtered_categories = result.categories.copy()
         needed = 10 - len(filtered_categories)
         already_chosen = set(cat.name for cat in filtered_categories)
@@ -159,19 +159,19 @@ Paragraph:
             filtered_categories.append(
                 CategoryItem(name=remaining_types[i], additional=True)
             )
-
+        result.starting_point = city_name
         result.categories = filtered_categories
         return result
     except Exception as e:
         return {"error": str(e)}
 
 
-def list_all_tourist_categories():
-    try:
-        category_names = [item["name"] for cat in CATEGORIES.values() for item in cat]
-        return category_names
-    except Exception as e:
-        return {"error": str(e)}
+# def list_all_tourist_categories():
+#     try:
+#         category_names = [item["name"] for cat in CATEGORIES.values() for item in cat]
+#         return category_names
+#     except Exception as e:
+#         return {"error": str(e)}
 
 
 def load_commands():
