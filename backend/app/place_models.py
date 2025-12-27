@@ -50,6 +50,8 @@ class Place(PlaceBase):
     place_detail = Column(JSON)
     city_name = Column(String)
     POI_score = Column(Float)
+    en_names = Column(JSON)
+    vi_names = Column(JSON)
 
 
 class CityType(PlaceBase):

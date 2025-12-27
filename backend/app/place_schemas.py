@@ -42,6 +42,8 @@ class PlaceIn(BaseModel):
     place_detail: Optional[Dict[str, Any]] = None
     city_name: Optional[str] = None
     POI_score: Optional[float] = None
+    en_names: Optional[List[str]] = None
+    vi_names: Optional[List[str]] = None
 
     class Config:
         extra = "allow"

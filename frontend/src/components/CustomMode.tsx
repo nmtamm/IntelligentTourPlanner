@@ -745,35 +745,35 @@ export function CustomMode({
         }
 
         case 'add_new_destination': {
-          const place = latestAIResult.place;
-          if (
-            place &&
-            typeof place === "object" &&
-            place !== null &&
-            place.title &&
-            typeof place.title === "string"
-          ) {
-            const day = localTripData.days.find((d) => d.id === selectedDay);
-            if (!day) break;
-            const destination = {
-              id: place.place_id,
-              name: place.title,
-              address: place.address || "",
-              costs: [{
-                id: `${Date.now()}-0`,
-                amount: place.price || "",
-                detail: "",
-                originalAmount: place.price || "",
-                originalCurrency: currency,
-              }],
-              latitude: place.gps_coordinates.latitude,
-              longitude: place.gps_coordinates.longitude,
-            };
-            updateDay(selectedDay, {
-              ...day,
-              destinations: [...day.destinations, destination],
-              optimizedRoute: [],
-            });
+          const matches = latestAIResult.matches;
+          if (Array.isArray(matches) && matches.length > 0) {
+            // If only one match, add it directly
+            if (matches.length === 1) {
+              const place = matches[0];
+              const day = localTripData.days.find((d) => d.id === selectedDay);
+              if (!day) break;
+              const destination = {
+                id: place.place_id,
+                name: place.title, // You may want to let the user pick a name variant here
+                address: place.address || "",
+                costs: [{
+                  id: `${Date.now()}-0`,
+                  amount: place.price || "",
+                  detail: "",
+                  originalAmount: place.price || "",
+                  originalCurrency: currency,
+                }],
+                latitude: place.gps_coordinates.latitude,
+                longitude: place.gps_coordinates.longitude,
+              };
+              updateDay(selectedDay, {
+                ...day,
+                destinations: [...day.destinations, destination],
+                optimizedRoute: [],
+              });
+            } else {
+              console.log("Multiple matches found, user selection required:", matches);
+            }
             break;
           }
         }

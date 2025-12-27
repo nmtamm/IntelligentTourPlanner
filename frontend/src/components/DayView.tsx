@@ -136,7 +136,7 @@ export function DayView({ day, onUpdate, currency, onCurrencyToggle, pendingDest
     }
     const destination = {
       id: place.place_id,
-      name: place.title,
+      name: newDestinationName,
       address: place.address || "",
       costs: [{
         id: `${Date.now()}-0`,

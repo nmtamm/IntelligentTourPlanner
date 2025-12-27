@@ -96,7 +96,7 @@ def get_types_dict_from_stats(city_name: str, db: Session):
 @router.get("/api/places/manualsearch")
 def search_places(query: str, db=Depends(get_db)):
     try:
-        sql = text("SELECT * FROM places_search WHERE title MATCH :q LIMIT 10")
+        sql = text("SELECT * FROM places_search WHERE title MATCH :q LIMIT 1000")
         results = db.execute(sql, {"q": query}).mappings().all()
         return list(results)
     except Exception as e:

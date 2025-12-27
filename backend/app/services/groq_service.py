@@ -266,7 +266,7 @@ Return your answer as a JSON object: {{"natural_expression": "<expression>"}}
         return {
             "command": command,
             "destination": info.get("destination", ""),
-            "place": info.get("place", None),
+            "matches": info.get("matches", []),
         }
     elif command == "delete_saved_plan_ith":
         info = delete_saved_plan_ith(client, user_prompt)
@@ -390,21 +390,22 @@ Instruction: {user_prompt}
             return {"error": "No destination found in prompt."}
 
         # Use the manualsearch function logic to search for the place by name
-        sql = text("SELECT * FROM places_search WHERE title MATCH :q LIMIT 1")
-        db_result = db.execute(sql, {"q": destination}).mappings().first()
-        if db_result:
-            # Optionally, get full place info from places table by place_id
+        sql = text("SELECT * FROM places_search WHERE title MATCH :q LIMIT 10")
+        db_results = db.execute(sql, {"q": destination}).mappings().first()
+        matches = []
+        for db_result in db_results:
             place_id = db_result.get("place_id")
             if place_id:
                 place_sql = text("SELECT * FROM places WHERE place_id = :id")
                 place_row = db.execute(place_sql, {"id": place_id}).fetchone()
                 if place_row:
-                    columns = [col.name for col in db_result.keys()]
                     place = dict(place_row)
-                    return {"destination": destination, "place": place}
-            return {"destination": destination, "place": dict(db_result)}
-        else:
-            return {"destination": destination, "place": None}
+                    matches.append(place)
+                else:
+                    matches.append(dict(db_result))
+            else:
+                matches.append(dict(db_result))
+        return {"destination": destination, "matches": matches}
     except Exception as e:
         return {"error": str(e)}
 
