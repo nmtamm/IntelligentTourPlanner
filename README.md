@@ -19,6 +19,7 @@ Create an ```.env``` file whose path is path-to-your-root-folder\backend\.env pa
 SERP_API_KEY=real_key
 GEMINI_API_KEY=real_key
 FOURSQUARE_API_KEY=real_key
+GROQ_API_KEY=real_key
 ```
 Then run this command to copy that file to your docker image:
 ```
@@ -30,32 +31,31 @@ docker cp path-to-your-root-folder\backend\.env mycontainer:/app/.env
 cd frontend
 ```
 
-## Install Vite plugin
+## Installation
+Run the following command to install Vite plugin:
 ```
 npm install tailwindcss @tailwindcss/vite
 ```
-
-## Install dependencies (if needed)
+Run the following command to install dependencies (if needed)
 ```
 npm install 
 ```
-
-## If your install ever breaks:
+If your install ever breaks:
 ```
 rm -rf node_modules package-lock.json
 npm install 
 ```
-
-## Install leaflet and react-leaflet for OpenStreetMap API:
+Run the following commands to install leaflet and react-leaflet for OpenStreetMap API:
 ```
 npm install react-leaflet@4.0.0
 npm install --save-dev @types/leaflet
 ```
-
-## Install Polyline to draw optimal route using OSRM:
+Run the following commands to install Polyline to draw optimal route using OSRM:
 ```
 npm install @mapbox/polyline
 ```
+## Download images
+Download images in the following [link](https://drive.google.com/file/d/1xxUfasr8J5LGjvUezsKU1snX9a4FTarp/view?usp=sharing) and put them in ```frontend/src/assets/```
 
 ## Run
 ```
