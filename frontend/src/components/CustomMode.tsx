@@ -2,69 +2,58 @@ import { useState, useEffect, useRef } from "react";
 import { DayView } from "./DayView";
 import { AllDaysView } from "./AllDaysView";
 import { MapView } from "./MapView";
+import { PlaceSearchView } from "./PlaceSearchView";
 import { RouteGuidance } from "./RouteGuidance";
+import { ErrorNotification } from "./ErrorNotification";
+import { ChatBox } from "./ChatBox";
+import { DayChip } from "./DayChip";
+import { AddDayButton } from "./AddDayButton";
+import { DateSelector } from "./DateSelector";
+import { ViewModePlacesGallery } from "./ViewModePlacesGallery";
+import { ViewModePlaceDetails } from "./ViewModePlaceDetails";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
 import { Card } from "./ui/card";
 import {
-  Plus,
   Save,
-  Eye,
-  Calculator,
-  X,
   Check,
   CalendarIcon,
-  ChevronUp,
-  ChevronDown,
-  Maximize2,
-  Minimize2,
-  Sparkles,
-  Waypoints,
   Loader2,
+  NotebookPen,
+  Users,
+  MapPin,
 } from "lucide-react";
-import { DayPlan, Destination } from "../types";
+import { DayPlan, Destination, Place } from "../types";
 import { toast } from "sonner";
-import { Calendar } from "./ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./ui/popover";
 import { format, addDays, differenceInDays, set } from "date-fns";
-import { createTrip, updateTrip } from '../api.js';
+import { t } from "../locales/translations";
+import { useThemeColors } from "../hooks/useThemeColors";
+import { convertAllDays } from "../utils/exchangerate";
+import { fetchNearbyPlaces, generatePlaces, mapPlaceToDestination } from "../utils/serp";
 import { getOptimizedRoute } from "../utils/geocode";
-import { fetchItinerary } from "../utils/gemini";
-import { data } from "react-router-dom";
-import { convertCurrency, convertAllDays } from "../utils/exchangerate";
-import { fetchPlacesData, generatePlaces, savePlacesToBackend } from "../utils/serp";
-import { geocodeDestination } from "../utils/geocode";
-import { makeDestinationFromGeo } from "../utils/destinationFactory";
-import { t } from "../utils/translations";
-import { ErrorNotification } from "./ErrorNotification";
-import { sendLocationToBackend } from "../utils/geolocation";
-import { fetchItineraryWithGroq, detectAndExecuteGroqCommand } from "../utils/groq";
-import { parseAmount, detectCurrencyAndNormalizePrice } from "../utils/parseAmount"
+import { createTrip, updateTrip } from '../api.js';
+import { getPlaceById } from "../utils/serp";
+
 interface CustomModeProps {
-  tripData: { name: string; days: DayPlan[] };
+  tripData: { name: string; days: DayPlan[], };
   onUpdate: (data: { name: string; days: DayPlan[] }) => void;
   currency: "USD" | "VND";
   onCurrencyToggle: () => void;
   language: "EN" | "VI";
+  mode: "custom" | "view";
   isLoggedIn: boolean;
   currentUser: string | null;
   planId?: string | null;
-  userLocation?: { latitude: number; longitude: number } | null;
-  manualStepAction?: string | null;
-  onManualActionComplete?: () => void;
+  onPlanIdChange?: (planId: string) => void;
   resetToDefault?: boolean;
   showAllDaysOnLoad?: boolean;
+  AICommand?: string | null;
+  onAIActionComplete?: () => void;
   onAICommand?: (command: string, payload?: any) => void;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
-
-
-type ViewMode = "single" | "all" | "route-guidance";
+type ViewMode = "single" | "route-guidance";
 
 export function CustomMode({
   tripData,
@@ -72,48 +61,52 @@ export function CustomMode({
   currency,
   onCurrencyToggle,
   language,
+  mode,
   isLoggedIn,
   currentUser,
   planId,
-  userLocation,
-  manualStepAction,
-  onManualActionComplete,
+  onPlanIdChange,
   resetToDefault,
   showAllDaysOnLoad,
+  AICommand,
+  onAIActionComplete,
   onAICommand,
+  userLocation
 }: CustomModeProps) {
-
-  // 1. Define state constant
   const lang = language.toLowerCase() as 'en' | 'vi';
+  const { primary, secondary } = useThemeColors();
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [selectedDay, setSelectedDay] = useState<string>("1");
-  const [routeGuidancePair, setRouteGuidancePair] = useState<[Destination, Destination] | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [localTripData, setLocalTripData] = useState(tripData);
+  const [routeGuidancePair, setRouteGuidancePair] = useState<
+    [Destination, Destination] | null
+  >(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] =
+    useState(false);
+  const [localTripData, setLocalTripData] = useState({
+    ...tripData, city: "",
+    cityCoordinates: { latitude: 0, longitude: 0 }
+  });
   const [members, setMembers] = useState("");
   const [preferences, setPreferences] = useState("");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [isDateUserInput, setIsDateUserInput] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isEstimating, setIsEstimating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [routeSegmentIndex, setRouteSegmentIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [focusedDestination, setFocusedDestination] = useState<Destination | null>(null);
+  const [selectedPlaceInViewMode, setSelectedPlaceInViewMode] = useState<Destination | null>(null);
+  const [routeSegmentIndex, setRouteSegmentIndex] = useState<number | null>(null);
   const [convertedDays, setConvertedDays] = useState(localTripData.days);
-  const [allPlaces, setAllPlaces] = useState<any[]>([]);
-  const [pendingDestination, setPendingDestination] = useState<{
-    name: string;
-    latitude: number;
-    longitude: number;
-    address: string;
-  } | null>(null);
+  const [isEstimating, setIsEstimating] = useState(false);
+  const dayChipsContainerRef = useRef<HTMLDivElement>(null);
   const [latestAIResult, setLatestAIResult] = useState<any>(null);
-  // 2. State hooks
+  const [AIMatches, setAIMatches] = useState<Destination[] | null>(null);
+  const [showPlaceDetailsModal, setShowPlaceDetailsModal] = useState(false);
+  const [placeDetails, setPlaceDetails] = useState<Place | null>(null);
+  const [detailedDestinations, setDetailedDestinations] = useState<Record<string, Place | null>>({});
 
-  // 3. Utitlity functions
   const handleTripDataChange = (newData: {
     name: string;
     days: DayPlan[];
@@ -140,14 +133,24 @@ export function CustomMode({
     });
     setSelectedDay(newDay.id);
     setViewMode("single");
+
+    // Scroll to show the newly added day chip
+    setTimeout(() => {
+      if (dayChipsContainerRef.current) {
+        dayChipsContainerRef.current.scrollTo({
+          left: dayChipsContainerRef.current.scrollWidth,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
   };
 
   const removeDay = (dayId: string) => {
     if (localTripData.days.length === 1) {
-      toast.error(t('mustHaveOneDay', lang));
       setError(t('mustHaveOneDay', lang));
       return;
     }
+
     const newDays = localTripData.days
       .filter((d) => d.id !== dayId)
       .map((day, index) => ({
@@ -156,8 +159,22 @@ export function CustomMode({
         dayNumber: index + 1,
       }));
     handleTripDataChange({ ...localTripData, days: newDays });
+
+    // If the deleted day was selected, choose the next appropriate day
     if (selectedDay === dayId) {
       setSelectedDay(newDays[0].id);
+
+      // Scroll to show the newly selected day chip
+      setTimeout(() => {
+        const chipElement = document.getElementById(`day-chip-${newDays[0].id}`);
+        if (chipElement && dayChipsContainerRef.current) {
+          chipElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+          });
+        }
+      }, 50);
     }
     toast.success(t('dayRemoved', lang));
   };
@@ -169,70 +186,6 @@ export function CustomMode({
         d.id === dayId ? updatedDay : d,
       ),
     });
-  };
-
-  const autoEstimateCosts = async () => {
-    setIsEstimating(true);
-    const multiplier = currency === "VND" ? 25000 : 1;
-
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    if (viewMode === "single") {
-      // Estimate for current day
-      const day = localTripData.days.find(
-        (d) => d.id === selectedDay,
-      );
-      if (!day) {
-        setIsEstimating(false);
-        return;
-      }
-
-      const updatedDay = {
-        ...day,
-        destinations: day.destinations.map((dest) => ({
-          ...dest,
-          costs: dest.costs.map((cost) => ({
-            ...cost,
-            amount: typeof cost.amount === "string"
-              ? cost.amount
-              : String(Math.floor((Math.random() * 30 + 10) * multiplier)),
-            originalAmount: typeof cost.amount === "string"
-              ? cost.amount
-              : String(Math.floor((Math.random() * 30 + 10) * multiplier)),
-            originalCurrency: currency,
-            detail: cost.detail || "",
-          })),
-        })),
-      };
-      updateDay(selectedDay, updatedDay);
-      toast.success(t('costsEstimatedCurrentDay', lang));
-    } else {
-      // Estimate for all days
-      const updatedDays = localTripData.days.map((day) => ({
-        ...day,
-        destinations: day.destinations.map((dest) => ({
-          ...dest,
-          costs: dest.costs.map((cost) => ({
-            ...cost,
-            amount: typeof cost.amount === "string"
-              ? cost.amount
-              : String(cost.amount), // always string
-            originalAmount: typeof cost.originalAmount === "string"
-              ? cost.originalAmount
-              : String(cost.originalAmount), // always string
-            originalCurrency: cost.originalCurrency || currency,
-            detail: cost.detail || "",
-          })),
-        })),
-      }));
-      handleTripDataChange({
-        ...localTripData,
-        days: updatedDays,
-      });
-      toast.success(t('costsEstimatedAllDays', lang));
-    }
-    setIsEstimating(false);
   };
 
   const findOptimalRoute = async (destinations: { latitude: number; longitude: number; name: string }[]) => {
@@ -290,12 +243,6 @@ export function CustomMode({
       )
     ).filter(Boolean); // Remove any unmatched
 
-    console.log("Optimized Route: %O", optimizedRoute);
-
-    for (let d in reorderedDestinations) {
-      console.log("Reordered Destinations: %O", reorderedDestinations[d]);
-    }
-
     updateDay(selectedDay, {
       ...day,
       destinations: reorderedDestinations,
@@ -313,7 +260,6 @@ export function CustomMode({
 
   const savePlan = async () => {
     if (!localTripData.name.trim()) {
-      toast.error(t('pleaseEnterTripName', lang));
       setError(t('pleaseEnterTripName', lang));
       return;
     }
@@ -371,8 +317,9 @@ export function CustomMode({
         setHasUnsavedChanges(false);
         toast.success(t('planSaved', lang));
         console.log('Created trip:', created);
-        // Update planId so subsequent saves will update instead of create
-        // Note: You might want to pass this back to parent component
+        if (created?.id && typeof onPlanIdChange === "function") {
+          onPlanIdChange(created.id);
+        }
       }
     } catch (error) {
       const err = error as any;
@@ -442,7 +389,342 @@ export function CustomMode({
     });
   };
 
-  // 4. Effect hooks
+  const handleAICommand = async (command: string, payload?: any) => {
+    if (onAICommand) onAICommand(command, payload);
+    switch (command) {
+      case 'create_itinerary':
+        if (payload && payload.itinerary) {
+          const result = payload.itinerary;
+
+          let parsedStart: Date | undefined;
+          let parsedEnd: Date | undefined;
+          let daysCount = 1;
+
+          // 1. Parse trip info and set trip name, members, dates
+          if (result.trip_info) {
+            if (result.trip_info.trip_name) updateTripName(result.trip_info.trip_name);
+            if (result.trip_info.num_people) setMembers(String(result.trip_info.num_people));
+            if (result.trip_info.start_day && !isNaN(Date.parse(result.trip_info.start_day))) {
+              parsedStart = new Date(result.trip_info.start_day);
+              setStartDate(parsedStart);
+            }
+            if (result.trip_info.end_day && !isNaN(Date.parse(result.trip_info.end_day))) {
+              parsedEnd = new Date(result.trip_info.end_day);
+              setEndDate(parsedEnd);
+            }
+          }
+
+          // 2. Create days array based on date range
+          if (parsedStart && parsedEnd) {
+            daysCount = differenceInDays(parsedEnd, parsedStart) + 1;
+            if (daysCount > 0) {
+              const days: DayPlan[] = [];
+              for (let i = 0; i < daysCount; i++) {
+                days.push({
+                  id: String(i + 1),
+                  dayNumber: i + 1,
+                  destinations: [],
+                  optimizedRoute: [],
+                });
+              }
+              handleTripDataChange({
+                ...localTripData,
+                days,
+              });
+            }
+          }
+
+          // 3. Generate and map places, then distribute among days
+          if (
+            userLocation &&
+            Array.isArray(result.categories) &&
+            (result.valid_starting_point === undefined || result.valid_starting_point === true)
+          ) {
+            const { allPlaces, city, latitude, longitude } = await generatePlaces(result, userLocation);
+            const mappedPlaces = allPlaces.map(place => {
+              const dest = mapPlaceToDestination(place, currency, onCurrencyToggle, language);
+              // Optionally add/override fields here
+              return dest;
+            });
+
+            // 4. Divide mappedPlaces into subsets for each day
+            if (daysCount > 1 && mappedPlaces.length > 0) {
+              const perDay = Math.floor(mappedPlaces.length / daysCount);
+              const remainder = mappedPlaces.length % daysCount;
+              let assigned = 0;
+              const newDays: DayPlan[] = [];
+              for (let i = 0; i < daysCount; i++) {
+                const count = perDay + (i < remainder ? 1 : 0);
+                newDays.push({
+                  ...localTripData.days[i],
+                  id: String(i + 1),
+                  dayNumber: i + 1,
+                  destinations: mappedPlaces.slice(assigned, assigned + count),
+                  optimizedRoute: [],
+                });
+                assigned += count;
+              }
+              handleTripDataChange({
+                ...localTripData,
+                days: newDays,
+                city: city,
+                cityCoordinates: { latitude, longitude }
+              });
+            } else if (mappedPlaces.length > 0) {
+              // Fallback: single day
+              handleTripDataChange({
+                ...localTripData,
+                days: [
+                  {
+                    ...localTripData.days[0],
+                    destinations: mappedPlaces,
+                    optimizedRoute: [],
+                  },
+                ],
+              });
+            }
+          } else if (result.valid_starting_point === false) {
+            toast.error("Starting point must be Da Lat, Ho Chi Minh City, or Hue, Vietnam.");
+          }
+          break;
+        }
+      case 'add_new_day': {
+        addDay();
+        break;
+      }
+      case 'add_new_day_after_current': {
+        addDayAfter(selectedDay);
+        break;
+      }
+
+      case 'add_new_day_after_ith': {
+        const dayIndex = payload?.day;
+        if (dayIndex && !isNaN(Number(dayIndex))) {
+          addDayAfter(String(dayIndex));
+        }
+        break;
+      }
+
+      case 'update_trip_name': {
+        const newName = payload?.trip_name;
+        if (newName && typeof newName === "string") {
+          updateTripName(newName);
+        }
+        break;
+      }
+
+      case 'update_members': {
+        const newMembers = payload?.members;
+        if (newMembers && !isNaN(Number(newMembers))) {
+          setMembers(String(newMembers));
+        }
+        break;
+      }
+
+      case 'update_start_date': {
+        const newStartDay = payload?.start_day;
+        if (newStartDay && !isNaN(Date.parse(newStartDay))) {
+          setStartDate(new Date(newStartDay));
+        }
+        break;
+      }
+
+      case 'update_end_date': {
+        const newEndDay = payload?.end_day;
+        if (newEndDay && !isNaN(Date.parse(newEndDay))) {
+          setEndDate(new Date(newEndDay));
+        }
+        break;
+      }
+
+      case 'view_all_days': {
+        setViewMode("all");
+        break;
+      }
+
+      case 'delete_current_day': {
+        removeDay(selectedDay);
+        break;
+      }
+
+      case 'delete_all_days': {
+        const newDay: DayPlan = {
+          id: "1",
+          dayNumber: 1,
+          destinations: [],
+          optimizedRoute: [],
+        };
+        handleTripDataChange({
+          ...localTripData,
+          days: [newDay],
+        });
+        setSelectedDay("1");
+        break;
+      }
+
+      case 'swap_day': {
+        const dayId1 = payload?.day1;
+        const dayId2 = payload?.day2;
+        if (dayId1 && dayId2) {
+          swapDays(String(dayId1), String(dayId2));
+        }
+        break;
+      }
+
+      case 'delete_range_of_days': {
+        const startDay = payload?.start_day;
+        const endDay = payload?.end_day;
+        if (startDay && endDay && !isNaN(Number(startDay)) && !isNaN(Number(endDay))) {
+          const startIdx = Number(startDay) - 1;
+          const endIdx = Number(endDay) - 1;
+          const newDays = localTripData.days
+            .filter((_, idx) => idx < startIdx || idx > endIdx)
+            .map((day, idx) => ({
+              ...day,
+              id: String(idx + 1),
+              dayNumber: idx + 1,
+            }));
+          handleTripDataChange({
+            ...localTripData,
+            days: newDays,
+          });
+          // Optionally update selectedDay if needed
+          if (newDays.length > 0) setSelectedDay(newDays[0].id);
+        }
+        break;
+      }
+
+      case 'search_new_destination': {
+        const matches = payload?.matches;
+        setAIMatches(matches);
+        break;
+      }
+
+
+      case 'extend_map_view': {
+        setIsMapExpanded(true);
+        break;
+      }
+
+      case 'collapse_map_view': {
+        setIsMapExpanded(false);
+        break;
+      }
+
+      case 'find_route_of_pair_ith': {
+        const pairIndex = latestAIResult.pair_index;
+        setViewMode("route-guidance");
+        setRouteSegmentIndex(pairIndex);
+        break;
+      }
+
+      case 'delete_current_plan': {
+        setLocalTripData({
+          name: "",
+          days: [
+            {
+              id: "1",
+              dayNumber: 1,
+              destinations: [],
+              optimizedRoute: [],
+            },
+          ],
+          city: "",
+          cityCoordinates: { latitude: 0, longitude: 0 },
+        });
+        setMembers("");
+        setPreferences("");
+        setStartDate(undefined);
+        setEndDate(undefined);
+        setSelectedDay("1");
+        setViewMode("single");
+        setAIMatches(null);
+        setHasUnsavedChanges(true);
+        break;
+      }
+      case 'confirm_add_new_destination': {
+        const addedDay = payload?.day;
+        if (payload?.destination) {
+          if (addedDay && !isNaN(Number(addedDay))) {
+            const day = localTripData.days.find(d => d.id === String(addedDay));
+            if (day) {
+              const destination = mapPlaceToDestination(payload.destination, currency, onCurrencyToggle, language);
+              const updatedDestinations = [...day.destinations, destination];
+              updateDay(day.id, {
+                ...day,
+                destinations: updatedDestinations,
+                optimizedRoute: [],
+              });
+              toast.success(t('destinationAdded', lang));
+            }
+          }
+        } break;
+      }
+      case 'add_new_destination': {
+        const addedDay = payload?.day;
+        if (payload?.destination) {
+          if (addedDay && !isNaN(Number(addedDay))) {
+            const day = localTripData.days.find(d => d.id === String(addedDay));
+            if (day) {
+              const destination = mapPlaceToDestination(payload.destination, currency, onCurrencyToggle, language);
+              const updatedDestinations = [...day.destinations, destination];
+              updateDay(day.id, {
+                ...day,
+                destinations: updatedDestinations,
+                optimizedRoute: [],
+              });
+              toast.success(t('destinationAdded', lang));
+            }
+          }
+        }
+        break;
+      }
+      case 'replace_destination_in_plan': {
+        const remove_id = payload?.remove_id;
+        const new_destination_full_place = payload?.new_destination;
+        // Find the destination id in the current plan
+        if (remove_id && new_destination_full_place) {
+          let found = false;
+          for (const day of localTripData.days) {
+            const destIndex = day.destinations.findIndex(dest => dest.id === remove_id);
+            if (destIndex !== -1) {
+              // Write the new destination to the found index but with different id
+              const destination = mapPlaceToDestination(new_destination_full_place, currency, onCurrencyToggle, language);
+              const updatedDestinations = [...day.destinations];
+              updatedDestinations[destIndex] = destination;
+              updateDay(day.id, {
+                ...day,
+                destinations: updatedDestinations,
+                optimizedRoute: [],
+              });
+              toast.success(t('destinationReplaced', lang));
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            toast.error(t('destinationToReplaceNotFound', lang));
+          }
+        }
+        break;
+      }
+      case 'extract_type_from_prompt': {
+        const place_type = payload?.type;
+        if (place_type && userLocation) {
+          const destinations = fetchNearbyPlaces(place_type, userLocation?.latitude, userLocation?.longitude, 1000);
+          setAIMatches(destinations);
+        } break;
+      }
+      case 'find_information_for_a_place': {
+        const fullPlace = payload?.place_info;
+        setAIMatches(fullPlace ? [fullPlace] : []);
+        setShowPlaceDetailsModal(true);
+        break;
+      }
+      default:
+        console.warn("Unknown AI command:", command);
+    }
+  }
   // Reset to default view states when User Manual is opened
   useEffect(() => {
     if (resetToDefault) {
@@ -457,15 +739,6 @@ export function CustomMode({
       }
     }
   }, [resetToDefault, localTripData.days]);
-
-  // Switch to View All Days when a plan is loaded from My Plans
-  useEffect(() => {
-    if (showAllDaysOnLoad) {
-      setViewMode("all");
-      setIsMapExpanded(false);
-      setRouteGuidancePair(null);
-    }
-  }, [showAllDaysOnLoad]);
 
   // Watch for changes to tripData
   useEffect(() => {
@@ -540,280 +813,14 @@ export function CustomMode({
     updateConvertedDays();
   }, [localTripData.days, currency]);
 
-  // 5. Handlers
-  // Handle manual step actions from User Manual
-  useEffect(() => {
-    if (!manualStepAction || !onManualActionComplete) return;
-
-    const handleAction = async () => {
-      switch (manualStepAction) {
-        case 'add-destination': {
-          // Add Ho Chi Minh and Ha Noi as sample destinations
-          const day = localTripData.days.find((d) => d.id === selectedDay);
-          if (!day) break;
-          if (day.destinations.length > 1) break;
-
-          const hoChiMinhGeo = await geocodeDestination("Ho Chi Minh City, Vietnam");
-          const haNoiGeo = await geocodeDestination("Ha Noi, Vietnam");
-
-          if (!hoChiMinhGeo || !haNoiGeo) {
-            toast.error("Failed to geocode sample destinations.");
-            return;
-          }
-
-          const hoChiMinh = makeDestinationFromGeo(hoChiMinhGeo, "Ho Chi Minh City", currency);
-          const haNoi = makeDestinationFromGeo(haNoiGeo, "Ha Noi", currency);
-
-          updateDay(selectedDay, {
-            ...day,
-            destinations: [...day.destinations, hoChiMinh, haNoi],
-            optimizedRoute: [],
-          });
-
-          toast.success('Sample destinations added!');
-          break;
-        }
-
-        case 'optimize-route': {
-          // Trigger route optimization
-          const day = localTripData.days.find((d) => d.id === selectedDay);
-          if (day && day.destinations.length > 0) {
-            await findOptimalRoute(day.destinations);
-          }
-          break;
-        }
-
-        case 'create_itinerary': {
-          const result = latestAIResult.itinerary;
-          console.log("AI Itinerary Result:", result);
-          console.log("Itinerary from backend:", result);
-
-          if (result.trip_info) {
-            if (result.trip_info.trip_name) updateTripName(result.trip_info.trip_name);
-            if (result.trip_info.num_people) setMembers(String(result.trip_info.num_people));
-            if (result.trip_info.start_day && !isNaN(Date.parse(result.trip_info.start_day))) {
-              setStartDate(new Date(result.trip_info.start_day));
-            }
-            if (result.trip_info.end_day && !isNaN(Date.parse(result.trip_info.end_day))) {
-              setEndDate(new Date(result.trip_info.end_day));
-            }
-          }
-
-          if (
-            userLocation &&
-            Array.isArray(result.categories) &&
-            (result.valid_starting_point === undefined || result.valid_starting_point === true)
-          ) {
-            const allPlaces = await generatePlaces(result, userLocation);
-            console.log("Fetched places:", allPlaces);
-            const mappedPlaces = allPlaces.map(place => {
-              const { detectedCurrency, normalizedPrice } = detectCurrencyAndNormalizePrice(place.price, currency);
-              if (detectedCurrency !== currency) {
-                onCurrencyToggle();
-              }
-              return {
-                id: place.place_id,
-                name: place.title,
-                address: place.address || "",
-                costs: [{
-                  id: `${Date.now()}-0`,
-                  amount: normalizedPrice,
-                  detail: "",
-                  originalAmount: normalizedPrice,
-                  originalCurrency: detectedCurrency,
-                }],
-                latitude: place.gps_coordinates.latitude,
-                longitude: place.gps_coordinates.longitude,
-              };
-            });
-            findOptimalRoute(mappedPlaces);
-          } else if (result.valid_starting_point === false) {
-            toast.error("Starting point must be Da Lat, Ho Chi Minh City, or Hue, Vietnam.");
-          }
-          break;
-        }
-
-        case 'add_new_day': {
-          addDay();
-          break;
-        }
-
-        case 'add_new_day_after_current': {
-          console.log("Adding new day after current day:", selectedDay);
-          addDayAfter(selectedDay);
-          break;
-        }
-
-        case 'add_new_day_after_ith': {
-          const dayIndex = latestAIResult.day;
-          console.log("Adding new day after ith day", dayIndex);
-          if (dayIndex && !isNaN(Number(dayIndex))) {
-            addDayAfter(String(dayIndex));
-          }
-          break;
-        }
-
-        case 'update_trip_name': {
-          const newName = latestAIResult.trip_name;
-          if (newName && typeof newName === "string") {
-            updateTripName(newName);
-          }
-          break;
-        }
-
-        case 'update_members': {
-          const newMembers = latestAIResult.members;
-          if (newMembers && !isNaN(Number(newMembers))) {
-            setMembers(String(newMembers));
-          }
-          break;
-        }
-
-        case 'update_start_date': {
-          const newStartDay = latestAIResult.start_day;
-          if (newStartDay && !isNaN(Date.parse(newStartDay))) {
-            setStartDate(new Date(newStartDay));
-          }
-
-          break;
-        }
-
-        case 'update_end_date': {
-          const newEndDay = latestAIResult.end_day;
-          if (newEndDay && !isNaN(Date.parse(newEndDay))) {
-            setEndDate(new Date(newEndDay));
-          }
-          break;
-        }
-
-        case 'view_all_days': {
-          setViewMode("all");
-          break;
-        }
-
-        case 'delete_current_day': {
-          removeDay(selectedDay);
-          break;
-        }
-
-        case 'delete_all_days': {
-          const newDay: DayPlan = {
-            id: "1",
-            dayNumber: 1,
-            destinations: [],
-            optimizedRoute: [],
-          };
-          handleTripDataChange({
-            ...localTripData,
-            days: [newDay],
-          });
-          setSelectedDay("1");
-          break;
-        }
-
-        case 'swap_day': {
-          const dayId1 = latestAIResult.day1;
-          const dayId2 = latestAIResult.day2;
-          if (dayId1 && dayId2) {
-            swapDays(String(dayId1), String(dayId2));
-          }
-          break;
-        }
-
-        case 'delete_range_of_days': {
-          const startDay = latestAIResult.start_day;
-          const endDay = latestAIResult.end_day;
-          console.log("Deleting range of days:", startDay, endDay);
-          if (startDay && endDay && !isNaN(Number(startDay)) && !isNaN(Number(endDay))) {
-            const startIdx = Number(startDay) - 1;
-            const endIdx = Number(endDay) - 1;
-            const newDays = localTripData.days
-              .filter((_, idx) => idx < startIdx || idx > endIdx)
-              .map((day, idx) => ({
-                ...day,
-                id: String(idx + 1),
-                dayNumber: idx + 1,
-              }));
-            handleTripDataChange({
-              ...localTripData,
-              days: newDays,
-            });
-            // Optionally update selectedDay if needed
-            if (newDays.length > 0) setSelectedDay(newDays[0].id);
-          }
-          break;
-        }
-
-        case 'add_new_destination': {
-          const matches = latestAIResult.matches;
-          if (Array.isArray(matches) && matches.length > 0) {
-            // If only one match, add it directly
-            if (matches.length === 1) {
-              const place = matches[0];
-              const day = localTripData.days.find((d) => d.id === selectedDay);
-              if (!day) break;
-              const destination = {
-                id: place.place_id,
-                name: place.title, // You may want to let the user pick a name variant here
-                address: place.address || "",
-                costs: [{
-                  id: `${Date.now()}-0`,
-                  amount: place.price || "",
-                  detail: "",
-                  originalAmount: place.price || "",
-                  originalCurrency: currency,
-                }],
-                latitude: place.gps_coordinates.latitude,
-                longitude: place.gps_coordinates.longitude,
-              };
-              updateDay(selectedDay, {
-                ...day,
-                destinations: [...day.destinations, destination],
-                optimizedRoute: [],
-              });
-            } else {
-              console.log("Multiple matches found, user selection required:", matches);
-            }
-            break;
-          }
-        }
-
-        case 'extend_map_view': {
-          setIsMapExpanded(true);
-          break;
-        }
-
-        case 'collapse_map_view': {
-          setIsMapExpanded(false);
-          break;
-        }
-
-        case 'find_route_of_pair_ith': {
-          const pairIndex = latestAIResult.pair_index;
-          setViewMode("route-guidance");
-          setRouteSegmentIndex(pairIndex);
-          break;
-        }
-
-        default:
-          break;
-      }
-
-      // Clear the action
-      onManualActionComplete();
-    };
-
-    handleAction();
-  }, [manualStepAction, onManualActionComplete, selectedDay, localTripData.days]);
-
   const handleRouteGuidance = (day: DayPlan, idx: number) => {
     setViewMode("route-guidance");
     setRouteSegmentIndex(idx);
   };
+
   const currentDay = localTripData.days.find(
     (d) => d.id === selectedDay,
   );
-
   if (viewMode === "route-guidance" && currentDay && routeSegmentIndex !== null) {
     return (
       <RouteGuidance
@@ -827,398 +834,412 @@ export function CustomMode({
     );
   }
 
+  useEffect(() => {
+    if (!selectedPlaceInViewMode) return;
+    getPlaceById(selectedPlaceInViewMode.place_id).then(setPlaceDetails);
+  }, [selectedPlaceInViewMode]);
 
+  useEffect(() => {
+    async function fetchDetails() {
+      const details: Record<string, Place | null> = {};
+      for (const dest of currentDay.destinations) {
+        if (!detailedDestinations[dest.id]) {
+          details[dest.id] = await getPlaceById(dest.id);
+        }
+      }
+      setDetailedDestinations(prev => ({ ...prev, ...details }));
+    }
+    fetchDetails();
+  }, [currentDay.destinations]);
 
-  return (
-    <div className="space-y-6">
+  // View Mode Layout: Map (50%) | ViewModePlacesGallery & ViewModePlaceDetails (50%), No ChatBox
+  if (mode === "view") {
+    return (
+      <div className="flex gap-4 h-[calc(100vh-32px)]">
+        {/* Left Side - Trip Details + Map (50%) */}
+        <div className="flex-1 h-full flex flex-col gap-4">
+          {/* Trip Details Card */}
+          <Card
+            className="shrink-0 rounded-[24px] border-0"
+            style={{
+              background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
+              boxShadow: '0 8px 32px rgba(0,77,182,0.08), 0 1px 3px rgba(0,0,0,0.05)',
+              paddingTop: '20px',
+              paddingLeft: '24px',
+              paddingRight: '24px',
+              paddingBottom: '20px'
+            }}
+          >
+            <div className="space-y-3">
+              {/* Header with decorative line */}
+              <div className="relative pb-2">
+                <h3 className="flex items-center gap-2 text-gray-900" style={{ fontSize: '20px', fontWeight: 600 }}>
+                  <div className="flex items-center justify-center w-9 h-9 rounded-xl">
+                    <NotebookPen className="w-6 h-6" style={{ color: primary }} />
+                  </div>
+                  {t('tripDetails', lang)}
+                </h3>
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r opacity-20" style={{
+                  backgroundImage: `linear-gradient(to right, ${primary}, ${secondary}, transparent)`
+                }}></div>
+              </div>
 
-      {/* AI Trip Generation Card */}
-      <Card className="max-w-7xl p-6 mx-auto">
-        <div className="space-y-6">
-          <div className="text-center mb-8">
-            <h2 className="text-[#004DB6] mb-2 font-bold">
-              {t('generateYourPerfectTrip', lang)}
-            </h2>
-            <p className="text-gray-600 not-italic font-normal">
-              {t('aiOptimizedItinerary', lang)}
-            </p>
-          </div>
+              {/* Trip Information - Read Only with icons */}
+              <div className="space-y-2.5">
+                {/* Trip Name */}
+                {localTripData.name && (
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 hover:bg-white/80 transition-colors duration-200 border border-gray-100/50">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{
+                      background: `linear-gradient(to bottom right, ${primary}10, ${primary}05)`
+                    }}>
+                      <MapPin className="w-4 h-4" style={{ color: primary }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-gray-500 mb-0.5">{t('tripName', lang)}</div>
+                      <div className="text-sm text-gray-900 truncate" style={{ fontWeight: 500 }}>{localTripData.name}</div>
+                    </div>
+                  </div>
+                )}
 
-          <div className="relative" data-tutorial="generate-plan">
-            <Textarea
-              value={preferences}
-              onChange={(e) => setPreferences(e.target.value)}
-              placeholder={t('tripPreferencesPlaceholder', lang)}
-              rows={6}
-              className="resize-none pr-14"
-            />
+                {/* Members and Dates in one row */}
+                <div className="flex gap-2.5">
+                  {/* Members */}
+                  {members && (
+                    <div className="flex-1 flex items-center gap-2.5 p-2.5 rounded-xl bg-white/60 hover:bg-white/80 transition-colors duration-200 border border-gray-100/50">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{
+                        background: `linear-gradient(to bottom right, ${secondary}10, ${secondary}05)`
+                      }}>
+                        <Users className="w-4 h-4" style={{ color: secondary }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-gray-500 mb-0.5">{t('numberOfMembers', lang)}</div>
+                        <div className="text-sm text-gray-900 whitespace-nowrap truncate" style={{ fontWeight: 500 }}>{members} {t('members', lang)}</div>
+                      </div>
+                    </div>
+                  )}
 
-            <Button
-              onClick={async () => {
-                if (!preferences.trim()) {
-                  toast.error(t('tripPreferencesRequired', lang));
-                  setError(t('tripPreferencesRequired', lang));
-                  return;
+                  {/* Dates */}
+                  {startDate && endDate && (
+                    <div className="flex-1 flex items-center gap-2.5 p-2.5 rounded-xl bg-white/60 hover:bg-white/80 transition-colors duration-200 border border-gray-100/50">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#DAF9D8]/80 to-[#70C573]/10 shrink-0">
+                        <CalendarIcon className="w-4 h-4 text-[#5E885D]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-gray-500 mb-0.5">{t('dates', lang)}</div>
+                        <div className="text-sm text-gray-900 truncate" style={{ fontWeight: 500 }}>
+                          {format(startDate, 'MMM d, yyyy')} - {format(endDate, 'MMM d, yyyy')}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Map View Card */}
+          <div className="flex-1 overflow-hidden">
+            <MapView
+              days={localTripData.days}
+              viewMode={viewMode}
+              selectedDayId={selectedDay}
+              onRouteGuidance={handleRouteGuidance}
+              resetMapView={resetToDefault}
+              language={language}
+              mode={mode}
+              focusedDestination={selectedPlaceInViewMode}
+              onOptimizeRoute={findOptimalRoute}
+              isOptimizing={isOptimizing}
+              onDestinationClick={(destination) => {
+                setSelectedPlaceInViewMode(destination);
+                // Find which day this destination belongs to and select that day
+                const dayWithDestination = localTripData.days.find((day) =>
+                  day.destinations.some((d) => d.id === destination.id)
+                );
+                if (dayWithDestination) {
+                  setSelectedDay(dayWithDestination.id);
                 }
-                setIsGenerating(true);
-                toast.success(t('generatingTrip', lang));
-                // AI generation logic will go here
-                try {
-                  // Send the whole preferences text as 'paragraph'
-                  const result = await detectAndExecuteGroqCommand(preferences);
-                  setLatestAIResult(result);
-                  console.log("AI Generation Result:", result);
-                  if (result.command && onAICommand) {
-                    // Example for delete_saved_plan_ith
-                    if (result.command === 'delete_saved_plan_ith') {
-                      onAICommand(result.command, { planIndex: result.plan_index });
-                    } else if (result.command === 'find_route_of_pair_ith') {
-                      onAICommand(result.command, { pairIndex: result.pair_index });
-                    } else {
-                      // For commands that don't need extra data
-                      onAICommand(result.command);
-                    }
-                  }
-                } catch (err) {
-                  console.error("Failed to fetch itinerary:", err);
-                  toast.error(t('generateFailed', lang));
-                  setError(t('generateFailed', lang));
-                }
-                setIsGenerating(false);
               }}
-              size="sm"
-              className="absolute bottom-2 right-2 bg-[#004DB6] hover:bg-[#003d8f] text-white h-7 w-28"
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-2 h-2 mr-1 animate-spin" />
-                  {t('waiting', lang)}...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-2 h-2 mr-1" />
-                  {t('generate', lang)}
-                </>
-              )}
-            </Button>
+            />
           </div>
         </div>
-      </Card>
 
-      {/* Trip Details Card */}
-      <Card className="max-w-7xl p-6 mx-auto">
-        <div className="space-y-4">
-          {/* Trip Name & Number of Members*/}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              value={localTripData.name}
-              onChange={(e) => updateTripName(e.target.value)}
-              placeholder={t('enterTripName', lang)}
-              className="w-full"
-              data-tutorial="trip-name"
-            />
+        {/* Right Side - Places Gallery + Place Details (50%) */}
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+          {/* Places Gallery with Day Navigation */}
+          <ViewModePlacesGallery
+            days={localTripData.days}
+            selectedDayId={selectedDay}
+            selectedPlaceId={selectedPlaceInViewMode?.id || null}
+            onDaySelect={(dayId) => {
+              setSelectedDay(dayId);
+              setSelectedPlaceInViewMode(null);
+            }}
+            onPlaceSelect={(place) => {
+              setSelectedPlaceInViewMode(place);
+              setFocusedDestination(place);
+            }}
+            language={language}
+          />
 
-            <Input
-              type="number"
-              value={members}
-              onChange={(e) => {
-                const value = e.target.value;
+          {/* Place Details */}
+          <ViewModePlaceDetails
+            place={selectedPlaceInViewMode}
+            language={language}
+            currency={currency}
+            detailedDestination={placeDetails}
+          />
+        </div>
 
-                if (value === "") {
-                  setMembers("");
-                  return;
-                }
+        {/* Error Notification */}
+        {error && (
+          <ErrorNotification
+            message={error}
+            onClose={() => setError(null)}
+          />
+        )}
+      </div>
+    );
+  }
 
-                if (Number(value) > 0 && Number(value) <= 20) {
-                  setMembers(String(value));
-                }
-              }}
-              placeholder={t('numberOfMembers', lang)}
-              min="1"
-              max="20"
-              data-tutorial="members"
-            />
-          </div>
+  // Custom Mode Layout: Original layout with ChatBox
+  return (
+    <div className="flex gap-4 h-[calc(100vh-32px)]">
+      {/* Left Side - 75% */}
+      <div className="flex-1 flex gap-4 overflow-hidden">
+        {/* Left: Place Search - Full Height */}
+        <div className="flex-1 relative h-full min-w-0">
+          <PlaceSearchView
+            onAddDestination={async (place: any) => {
+              const day = localTripData.days.find((d) => d.id === selectedDay);
+              if (!day) return;
 
-          {/* Date Selection with Increment/Decrement */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="relative" data-tutorial="start-date">
-              <Popover>
-                <PopoverTrigger asChild>
+              console.log("dest place id:", place.place_id);
+              // Check for duplicate place_id
+              if (day.destinations.some(dest => dest.id === place.place_id)) {
+                toast.error(t("destinationAlreadyExists", lang));
+                return;
+              }
+              // Convert place to Destination type
+              const destination = mapPlaceToDestination(place, currency, onCurrencyToggle, language);
+              updateDay(selectedDay, {
+                ...day,
+                destinations: [...day.destinations, destination],
+                optimizedRoute: [],
+              });
+              toast.success(t("destinationAdded", lang));
+            }}
+            language={language}
+            selectedDayId={selectedDay}
+            currentDayNumber={localTripData.days.find((d) => d.id === selectedDay)?.dayNumber}
+            currency={currency}
+            onCurrencyToggle={onCurrencyToggle}
+            AIMatches={AIMatches}
+            onAIMatchesReset={() => setAIMatches(null)}
+            userLocation={userLocation}
+            city={localTripData.city}
+            cityCoordinates={localTripData.cityCoordinates}
+            shouldPopUp={showPlaceDetailsModal}
+            onClosePopUp={() => setShowPlaceDetailsModal(false)}
+          />
+        </div>
+
+        {/* Right: Trip Info + Day View */}
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+          {/* Trip Info Card */}
+          <Card
+            className="shrink-0 rounded-[24px] border border-[#E5E7EB]"
+            style={{
+              background: '#FFFFFF',
+              boxShadow: '0 18px 40px rgba(15,23,42,0.06)',
+              paddingTop: '28px',
+              paddingLeft: '28px',
+              paddingRight: '28px',
+              paddingBottom: '12px'
+            }}
+            data-tutorial-card="trip-details"
+          >
+            <div className="space-y-3">
+              {/* Header / Title Area with Save Button */}
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-gray-900" style={{ fontSize: '20px', fontWeight: 600 }}>
+                  <NotebookPen className="w-6 h-6" style={{ color: primary }} />
+                  {t('tripDetails', lang)}
+                </h3>
+
+                {/* Save Plan Button */}
+                {isLoggedIn && (
                   <Button
-                    variant="outline"
-                    className="w-full justify-start text-left pr-20"
+                    size="sm"
+                    onClick={savePlan}
+                    disabled={!hasUnsavedChanges || isSaving}
+                    data-tutorial="save-plan"
+                    className="transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95 disabled:hover:scale-100 disabled:hover:shadow-none group"
+                    style={{ height: '32px' }}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? (
-                      format(startDate, "PPP")
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {t('saving', lang)}...
+                      </>
+                    ) : hasUnsavedChanges ? (
+                      <>
+                        <Save className="w-4 h-4 mr-2 transition-transform duration-200 group-hover:scale-110 group-hover:-translate-y-0.5" />
+                        {t('savePlan', lang)}
+                      </>
                     ) : (
-                      <span>{t('startDate', lang)}</span>
+                      <>
+                        <Check className="w-4 h-4 mr-2 transition-all duration-200 group-hover:scale-125" />
+                        {t('saved', lang)}
+                      </>
                     )}
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={(date) => {
-                      setStartDate(date);
-                      setIsDateUserInput(true);
-                    }}
-                    disabled={(date) => {
-                      // Disable dates after end date if end date is set
-                      if (endDate) {
-                        return date > endDate;
-                      }
-                      return false;
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-              <div className="absolute right-1 top-1 flex flex-col">
-                <button
-                  onClick={() => {
+                )}
+              </div>
+
+              {/* Trip Name & Number of Members */}
+              <div className="flex gap-5">
+                <Input
+                  value={localTripData.name}
+                  onChange={(e) => updateTripName(e.target.value)}
+                  placeholder={t('enterTripName', lang)}
+                  className="flex-1 rounded-xl border-[#E2E8F0] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus-visible:ring-[3px] focus-visible:ring-[rgba(59,130,246,0.20)] focus-visible:border-[#3B82F6] transition-all duration-200 hover:border-[#CBD5E1] hover:bg-white"
+                  style={{ height: '40px' }}
+                  data-tutorial="trip-name"
+                />
+
+                <Input
+                  type="number"
+                  value={members}
+                  onChange={(e) => {
+                    setMembers(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
+                  placeholder={t('numberOfMembers', lang)}
+                  min="1"
+                  className="flex-1 rounded-xl border-[#E2E8F0] bg-[#F8FAFC] placeholder:text-[#94A3B8] focus-visible:ring-[3px] focus-visible:ring-[rgba(59,130,246,0.20)] focus-visible:border-[#3B82F6] transition-all duration-200 hover:border-[#CBD5E1] hover:bg-white"
+                  style={{ height: '40px' }}
+                  data-tutorial="members"
+                />
+              </div>
+
+              {/* Date Selection with Increment/Decrement */}
+              <div className="flex gap-5">
+                <DateSelector
+                  date={startDate}
+                  onSelect={(date) => {
+                    setStartDate(date);
+                    setIsDateUserInput(true);
+                  }}
+                  placeholder={t('startDate', lang)}
+                  disabled={(date) => {
+                    if (endDate) {
+                      return date > endDate;
+                    }
+                    return false;
+                  }}
+                  onIncrement={() => {
                     if (startDate) {
                       setStartDate(addDays(startDate, 1));
                       setIsDateUserInput(true);
                     }
                   }}
-                  className="bg-white hover:bg-accent hover:text-accent-foreground border border-gray-300 border-b-0 rounded-t px-1.5 py-0.5"
-                >
-                  <ChevronUp className="w-2 h-2" />
-                </button>
-
-                <button
-                  onClick={() => {
+                  onDecrement={() => {
                     if (startDate) {
                       setStartDate(addDays(startDate, -1));
                       setIsDateUserInput(true);
                     }
                   }}
-                  className="bg-white hover:bg-accent hover:text-accent-foreground border border-gray-300 rounded-b px-1.5 py-0.5"
-                >
-                  <ChevronDown className="w-2 h-2" />
-                </button>
-              </div>
-            </div>
+                />
 
-            <div className="relative" data-tutorial="end-date">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left pr-20"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? (
-                      format(endDate, "PPP")
-                    ) : (
-                      <span>{t('endDate', lang)}</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={(date) => {
-                      setEndDate(date);
-                      setIsDateUserInput(true);
-                    }}
-                    disabled={(date) => {
-                      // Disable dates before start date if start date is set
-                      if (startDate) {
-                        return date < startDate;
-                      }
-                      return false;
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-              <div className="absolute right-1 top-1 flex flex-col">
-                <button
-                  onClick={() => {
+                <DateSelector
+                  date={endDate}
+                  onSelect={(date) => {
+                    setEndDate(date);
+                    setIsDateUserInput(true);
+                  }}
+                  placeholder={t('endDate', lang)}
+                  disabled={(date) => {
+                    if (startDate) {
+                      return date < startDate;
+                    }
+                    return false;
+                  }}
+                  onIncrement={() => {
                     if (endDate) {
                       setEndDate(addDays(endDate, 1));
                       setIsDateUserInput(true);
                     }
                   }}
-                  className="bg-white hover:bg-accent hover:text-accent-foreground border border-gray-300 border-b-0 rounded-t px-1.5 py-0.5"
-                >
-                  <ChevronUp className="w-2 h-2" />
-                </button>
-                <button
-                  onClick={() => {
+                  onDecrement={() => {
                     if (endDate) {
                       setEndDate(addDays(endDate, -1));
                       setIsDateUserInput(true);
                     }
                   }}
-                  className="bg-white hover:bg-accent hover:text-accent-foreground border border-gray-300 rounded-b px-1.5 py-0.5"
-                >
-                  <ChevronDown className="w-2 h-2" />
-                </button>
+                />
+              </div>
+
+              {/* Day Navigation - Timeline Chips */}
+              <div className="flex items-center gap-3">
+                <div className="flex gap-3 overflow-x-auto pb-1 flex-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ overflowY: 'visible', paddingTop: '4px', paddingBottom: '4px' }} ref={dayChipsContainerRef} data-tutorial="day-tabs">
+                  {localTripData.days.map((day) => (
+                    <div key={day.id} id={`day-chip-${day.id}`}>
+                      <DayChip
+                        dayNumber={day.dayNumber}
+                        isSelected={selectedDay === day.id && viewMode === "single"}
+                        onClick={() => {
+                          setSelectedDay(day.id);
+                          setViewMode("single");
+
+                          // Scroll to show the clicked day chip
+                          setTimeout(() => {
+                            const chipElement = document.getElementById(`day-chip-${day.id}`);
+                            if (chipElement && dayChipsContainerRef.current) {
+                              chipElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'nearest',
+                                inline: 'center'
+                              });
+                            }
+                          }, 50);
+                        }}
+                        onDelete={(e) => {
+                          e.stopPropagation();
+                          removeDay(day.id);
+                        }}
+                        label={t('day', lang)}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Day Button */}
+                <AddDayButton
+                  onClick={addDay}
+                  label={t('addDay', lang)}
+                />
               </div>
             </div>
-          </div>
+          </Card>
 
-          {/* Day Navigation */}
-          <div className="flex items-center gap-2" data-tutorial="day-tabs">
-            <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              {localTripData.days.map((day) => (
-                <Button
-                  key={day.id}
-                  variant={
-                    selectedDay === day.id &&
-                      viewMode === "single"
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => {
-                    setSelectedDay(day.id);
-                    setViewMode("single");
-                  }}
-                  className="relative pr-8 shrink-0 text-center"
-                >
-                  {t('day', lang)} {day.dayNumber}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeDay(day.id);
-                    }}
-                    className="absolute -top-1 -right-1 bg-[rgb(198,185,189)] text-white rounded-full w-4 h-4 flex items-center justify-center hover:bg-red-600 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Button>
-              ))}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={addDay}
-              className="shrink-0"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {t('addDay', lang)}
-            </Button>
-            <Button
-              variant={
-                viewMode === "all" ? "default" : "outline"
-              }
-              size="sm"
-              onClick={() => setViewMode("all")}
-              className="shrink-0"
-              data-tutorial="view-all-days"
-            >
-              <Eye className="w-4 h-4 mr-1" />
-              {t('viewAllDays', lang)}
-            </Button>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={autoEstimateCosts}
-            data-tutorial="auto-estimate"
-            disabled={isEstimating}
-          >
-            {isEstimating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {t('estimating', lang)}...
-              </>
-            ) : (
-              <>
-                <Calculator className="w-4 h-4 mr-2" />
-                {viewMode === "all"
-                  ? t('autoEstimateAllDays', lang)
-                  : t('autoEstimateCurrentDay', lang)}
-              </>
-            )}
-          </Button>
-
-          {viewMode === "single" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const day = localTripData.days.find((d) => d.id === selectedDay);
-                if (day && day.destinations.length > 0) {
-                  findOptimalRoute(day.destinations);
-                }
-              }}
-              disabled={isOptimizing}
-              data-tutorial="optimize-route"
-            >
-              {isOptimizing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('optimizing', lang)}...
-                </>
-              ) : (
-                <>
-                  <Waypoints className="w-4 h-4 mr-2" />
-                  {t('findOptimalRoute', lang)}
-                </>
-              )}
-            </Button>
-          )}
-
-          {isLoggedIn && (
-            <Button
-              size="sm"
-              onClick={savePlan}
-              disabled={!hasUnsavedChanges || isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('saving', lang)}...
-                </>
-              ) : hasUnsavedChanges ? (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  {t('savePlan', lang)}
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  {t('saved', lang)}
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      </Card>
-
-      {/* Main Content */}
-      <div className={`max-w-7xl mx-auto grid gap-6 ${isMapExpanded ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
-
-        {/* Left: Day/Days View */}
-        {!isMapExpanded && (
-          <div className="space-y-4">
-            {viewMode === "single" && currentDay && convertedDays.find(d => d.id === selectedDay) ? (
+          {/* Main Content - Map and Day View Side by Side */}
+          <div className="flex-1 overflow-y-auto">
+            {viewMode === "single" && currentDay ? (
               <DayView
-                day={convertedDays.find(d => d.id === selectedDay)!}
+                day={currentDay}
                 onUpdate={(updatedDay) =>
                   updateDay(selectedDay, updatedDay)
                 }
                 currency={currency}
                 onCurrencyToggle={onCurrencyToggle}
-                pendingDestination={pendingDestination}
-                setPendingDestination={setPendingDestination}
-                generatedPlaces={allPlaces}
                 language={language}
+                onDestinationClick={(destination) => setFocusedDestination(destination)}
+                detailedDestinations={detailedDestinations}
               />
             ) : (
               <AllDaysView
-                days={convertedDays}
+                days={localTripData.days}
                 onUpdate={(updatedDays) =>
                   handleTripDataChange({
                     ...localTripData,
@@ -1231,44 +1252,20 @@ export function CustomMode({
               />
             )}
           </div>
-        )}
-
-        {/* Right: Map */}
-        <div className={`relative ${isMapExpanded ? "h-[80vh] w-full" : ""}`}>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsMapExpanded(!isMapExpanded)}
-            className="absolute top-2 right-2 z-10"
-          >
-            {isMapExpanded ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
-          </Button>
-          <MapView
-            days={convertedDays}
-            viewMode={viewMode}
-            selectedDayId={selectedDay}
-            onRouteGuidance={handleRouteGuidance}
-            isExpanded={isMapExpanded}
-            userLocation={userLocation}
-            manualStepAction={manualStepAction}
-            onManualActionComplete={onManualActionComplete}
-            onMapClick={data => {
-              setPendingDestination({
-                name: data.name,
-                latitude: data.latitude,
-                longitude: data.longitude,
-                address: data.address,
-              });
-            }}
-            resetMapView={resetToDefault}
-            language={language}
-          />
         </div>
+      </div>
+
+      {/* Right Side - Chat Box (30%) */}
+      <div className="w-3/10 min-w-[300px] h-full">
+        <ChatBox
+          language={language}
+          AICommand={AICommand}
+          onAICommand={handleAICommand}
+          onAIActionComplete={onAIActionComplete}
+          city={localTripData.city}
+          cityCoordinates={localTripData.cityCoordinates}
+          plan={localTripData}
+        />
       </div>
 
       {/* Error Notification */}
@@ -1278,7 +1275,6 @@ export function CustomMode({
           onClose={() => setError(null)}
         />
       )}
-
     </div>
   );
 }

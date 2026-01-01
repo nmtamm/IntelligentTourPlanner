@@ -17,15 +17,24 @@ class UserCreate(BaseModel):
     username: str
     email: str
     password: str
+    avatar: str | None = None
 
 
 class UserResponse(BaseModel):
     username: str
     email: str | None = None
+    avatar: str | None = None
 
 
 class UserInDB(UserResponse):
     hashed_password: str
+
+
+class UserUpdate(BaseModel):
+    username: str | None = None
+    email: str | None = None
+    password: str | None = None
+    avatar: str | None = None
 
 
 # Cost schemas

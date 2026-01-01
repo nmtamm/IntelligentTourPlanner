@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { GpsGate } from "./components/GpsGate";
 import { CustomMode } from "./components/CustomMode";
+import { GpsGate } from "./components/GpsGate";
 import { AuthModal } from "./components/AuthModal";
+import { AccountProfile } from "./components/AccountProfile";
 import { SavedPlans } from "./components/SavedPlans";
 import { UserManual } from "./components/UserManual";
+import { Settings } from "./components/Settings";
+import { Sidebar } from "./components/Sidebar";
+import { IntroScreen } from "./components/IntroScreen";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { Button } from "./components/ui/button";
 import {
   LogIn,
@@ -11,25 +16,42 @@ import {
   Map,
   Globe,
   MapPinPen,
-  HelpCircle
+  HelpCircle,
+  Edit,
+  Eye,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { DayPlan } from "./types";
-import { checkGPS, sendLocationToBackend } from "./utils/geolocation";
-import { fetchFoursquarePlaces } from "./utils/foursquare";
-import { t } from "./utils/translations";
+import { t } from "./locales/translations";
+import { motion } from "motion/react";
 
 type Currency = "USD" | "VND";
 type Language = "EN" | "VI";
+type Mode = "custom" | "view";
 
-export default function App() {
+interface UserProfile {
+  username: string;
+  email: string;
+  password: string;
+  avatar?: string;
+}
+
+function AppContent() {
   const gpsApiUrl = 'http://localhost:8000/api/location';
-
+  const [showIntro, setShowIntro] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAccountProfileOpen, setIsAccountProfileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null,);
+  const [currentUser, setCurrentUser] = useState<string | null>(
+    null,
+  );
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
-  const [currency, setCurrency] = useState<"USD" | "VND">("USD",);
+  const [currency, setCurrency] = useState<"USD" | "VND">(
+    "USD",
+  );
   const [language, setLanguage] = useState<Language>("EN");
+  const [mode, setMode] = useState<Mode>("custom");
   const [tripData, setTripData] = useState<{
     name: string;
     days: DayPlan[];
@@ -37,42 +59,68 @@ export default function App() {
   const [currentPlanId, setCurrentPlanId] = useState<
     string | null
   >(null);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isUserManualOpen, setIsUserManualOpen] = useState(false);
-  const [manualStepAction, setManualStepAction] = useState<string | null>(null);
   const [resetViewsToDefault, setResetViewsToDefault] = useState(false);
   const [showAllDaysOnLoad, setShowAllDaysOnLoad] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [AICommand, setAICommand] = useState<string | null>(null);
   const [AICommandPayload, setAICommandPayload] = useState<any>(null);
-  const mergedAction = manualStepAction || AICommand;
-  const lang = language.toLowerCase() as 'en' | 'vi';
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  // => I put this in GpsGate.tsx now
-  // useEffect(() => {
-  //   checkGPS((gps) => {
-  //     if (gps) {
-  //       setUserLocation({ lat: gps.latitude, lng: gps.longitude });
-  //       sendLocationToBackend(gpsApiUrl, (data, error) => {
-  //         if (error) {
-  //           console.error("Failed to send GPS:", error);
-  //         } else {
-  //           console.log("Location sent to backend:", data);
-  //         }
-  //       });
-  //     }
-  //   });
-  // }, []);
+  // Use theme hook
+  const { currentTheme } = useTheme();
 
-  const handleLogin = (email: string) => {
+  const handleLogin = (user: { username: string; email: string; password?: string; avatar?: string }) => {
     setIsLoggedIn(true);
-    setCurrentUser(email);
+    setCurrentUser(user.email);
+
+    setUserProfile({
+      username: user.username,
+      email: user.email,
+      password: user.password || 'defaultPassword123', // You may want to omit this for security
+      avatar: user.avatar
+    });
+
     setIsAuthModalOpen(false);
+    setShowIntro(false);
+  };
+
+  const handleContinueFromIntro = (user: { username: string; email: string; password?: string; avatar?: string }) => {
+    if (user) {
+      setIsLoggedIn(true);
+      setCurrentUser(user.email);
+      setUserProfile(user);
+    } else {
+      setIsUserManualOpen(true);
+    }
+    setShowIntro(false);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
+    setUserProfile(null);
     setShowSavedPlans(false);
+    setIsAccountProfileOpen(false);
+  };
+
+  const handleUpdateProfile = (updates: {
+    username?: string;
+    email?: string;
+    password?: string;
+    avatar?: string;
+  }) => {
+    if (userProfile) {
+      setUserProfile({
+        ...userProfile,
+        ...updates
+      });
+
+      // Update currentUser if email changed
+      if (updates.email) {
+        setCurrentUser(updates.email);
+      }
+    }
   };
 
   const handleLoadPlan = (plan: {
@@ -83,6 +131,9 @@ export default function App() {
     setTripData({ name: plan.name, days: plan.days });
     setCurrentPlanId(plan.id);
     setShowSavedPlans(false);
+
+    // Switch to View mode when loading a plan
+    setMode("view");
 
     // Trigger View All Days mode when a plan is loaded
     setShowAllDaysOnLoad(true);
@@ -107,6 +158,7 @@ export default function App() {
     });
     setCurrentPlanId(null);
     setShowSavedPlans(false);
+    setMode("custom");
   };
 
   const handleOpenUserManual = () => {
@@ -159,114 +211,60 @@ export default function App() {
 
   return (
     <GpsGate gpsApiUrl={gpsApiUrl} onLocation={setUserLocation}>
-      <div className="min-h-screen bg-linear-to-br from-green-100 to-blue-300">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <MapPinPen className="w-8 h-8 text-[#004DB6]" />
-                <h1 className="text-[#004DB6] font-bold font-[Lora] text-[32px]">
-                  Intelligent Tour Planner
-                </h1>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Currency Switcher */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrency(
-                      currency === "USD" ? "VND" : "USD",
-                    )
-                  }
-                  data-tutorial="currency"
-                >
-                  {currency === "USD" ? "USD" : "VND"}
-                </Button>
-
-                {/* Language Switcher */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setLanguage(language === "EN" ? "VI" : "EN")
-                  }
-                  data-tutorial="language"
-                >
-                  <Globe className="w-4 h-4 mr-2" />
-                  {language === "EN" ? "English" : "Tiếng Việt"}
-                </Button>
-
-                {/* User Manual Button - Always Visible */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleOpenUserManual}
-                  className="border-[#70C573] text-[#004DB6] hover:bg-[#DAF9D8]"
-                >
-                  <HelpCircle className="w-4 h-4 mr-2" />
-                  {t("userManual", lang)}
-                </Button>
-
-                {isLoggedIn ? (
-                  <>
-                    <span className="text-gray-600 text-sm">
-                      {currentUser}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setShowSavedPlans(!showSavedPlans)
-                      }
-                    >
-                      {showSavedPlans
-                        ? t("customMode", lang)
-                        : t("myPlans", lang)}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      {t("logout", lang)}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setIsAuthModalOpen(true)}
-                      data-tutorial="login"
-                    >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      {t("login", lang)}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
+      <div
+        className="min-h-screen"
+        style={{ background: showIntro ? undefined : currentTheme.colors.background }}
+      >
+        {/* Sidebar - Hidden on Intro Screen */}
+        {!showIntro && (
+          <Sidebar
+            mode={mode}
+            onModeChange={setMode}
+            onSettingsClick={() => setIsSettingsOpen(true)}
+            onUserManualClick={handleOpenUserManual}
+            onMyPlansClick={() => {
+              if (isLoggedIn) {
+                setShowSavedPlans(true);
+              } else {
+                setIsAuthModalOpen(true);
+              }
+            }}
+            onLoginClick={() => {
+              if (isLoggedIn) {
+                // Show account profile modal
+                setIsAccountProfileOpen(true);
+              } else {
+                setIsAuthModalOpen(true);
+              }
+            }}
+            isLoggedIn={isLoggedIn}
+            currentUser={currentUser}
+            language={language}
+            isMyPlansActive={showSavedPlans && isLoggedIn}
+            userAvatar={userProfile?.avatar}  // ← NEW LINE ADDED
+          />
+        )}
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {showSavedPlans && isLoggedIn ? (
+        <main className={showIntro ? "min-h-screen" : "pl-24 pr-4 pt-4 pb-4 max-w-[100vw] mx-auto"}>
+          {showIntro ? (
+            <IntroScreen
+              onContinue={handleContinueFromIntro}
+              language={language}
+              onLanguageChange={setLanguage}
+            />
+          ) : showSavedPlans && isLoggedIn ? (
             <SavedPlans
               currentUser={currentUser!}
               onBack={() => setShowSavedPlans(false)}
               onLoadPlan={handleLoadPlan}
               onCreateNew={handleCreateNewPlan}
-              currency={currency}
               language={language}
-              AICommand={mergedAction}
+              currency={currency}
+              AICommand={AICommand}
+              AICommandPayload={AICommandPayload}
               onAICommand={handleAICommand}
-              onAIActionComplete={() => {
-                setAICommand(null);
-              }}
+              onAIActionComplete={() => setAICommand(null)}
             />
           ) : (
             <CustomMode
@@ -289,18 +287,17 @@ export default function App() {
                 setCurrency(currency === "USD" ? "VND" : "USD")
               }
               language={language}
+              mode={mode}
               isLoggedIn={isLoggedIn}
               currentUser={currentUser}
               planId={currentPlanId}
-              userLocation={userLocation}
-              manualStepAction={mergedAction}
-              onManualActionComplete={() => {
-                setManualStepAction(null);
-                setAICommand(null);
-              }}
+              onPlanIdChange={setCurrentPlanId}
               resetToDefault={resetViewsToDefault}
               showAllDaysOnLoad={showAllDaysOnLoad}
+              AICommand={AICommand}
+              onAIActionComplete={() => setAICommand(null)}
               onAICommand={handleAICommand}
+              userLocation={userLocation}
             />
           )}
         </main>
@@ -313,14 +310,46 @@ export default function App() {
           language={language}
         />
 
+        {/* Account Profile Modal */}
+        {userProfile && (
+          <AccountProfile
+            isOpen={isAccountProfileOpen}
+            onClose={() => setIsAccountProfileOpen(false)}
+            onLogout={handleLogout}
+            currentUser={userProfile}
+            onUpdateProfile={handleUpdateProfile}
+            language={language}
+          />
+        )}
+
         {/* User Manual */}
         <UserManual
           isOpen={isUserManualOpen}
           onClose={handleCloseUserManual}
-          onAutoAction={(stepId) => setManualStepAction(stepId)}
           language={language}
+          currentMode={mode}
+          onModeChange={setMode}
+        />
+
+        {/* Settings Modal */}
+        <Settings
+          currency={currency}
+          language={language}
+          onCurrencyToggle={() => setCurrency(currency === "USD" ? "VND" : "USD")}
+          onLanguageToggle={() => setLanguage(language === "EN" ? "VI" : "EN")}
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          asModal={true}
         />
       </div>
-    </GpsGate>
+    </GpsGate >
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

@@ -52,6 +52,12 @@ class Place(PlaceBase):
     POI_score = Column(Float)
     en_names = Column(JSON)
     vi_names = Column(JSON)
+    local_path = Column(String)
+    place_detail_vi = Column(JSON)
+    place_detail_en = Column(JSON)
+    best_type_id = Column(String)
+    best_type_id_en = Column(String)
+    best_type_id_vi = Column(String)
 
 
 class CityType(PlaceBase):

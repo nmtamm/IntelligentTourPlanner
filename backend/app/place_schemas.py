@@ -44,6 +44,12 @@ class PlaceIn(BaseModel):
     POI_score: Optional[float] = None
     en_names: Optional[List[str]] = None
     vi_names: Optional[List[str]] = None
+    locals_path: Optional[str] = None
+    place_detail_vi: Optional[Dict[str, Any]] = None
+    place_detail_en: Optional[Dict[str, Any]] = None
+    best_type_id: Optional[str] = None
+    best_type_id_en: Optional[str] = None
+    best_type_id_vi: Optional[str] = None
 
     class Config:
         extra = "allow"

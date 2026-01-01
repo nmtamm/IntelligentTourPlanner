@@ -3,132 +3,281 @@
         {
             "name": "open_user_manual",
             "natural_expression": "open the user manual",
-            "description": "Open the user manual or help guide."
+            "description": "Open the user manual or help guide.",
+            "response_vi": "Đã mở hướng dẫn sử dụng",
+            "response_en": "User manual opened",
+            "error_response_vi": "Không thể mở hướng dẫn sử dụng. Vui lòng thử lại.",
+            "error_response_en": "Failed to open user manual. Please try again."
         },
         {
             "name": "change_language",
             "natural_expression": "change language",
-            "description": "Change the application's language."
+            "description": "Change the application's language.",
+            "response_vi": "Đã thay đổi ngôn ngữ",
+            "response_en": "Language changed",
+            "error_response_vi": "Không thể thay đổi ngôn ngữ. Vui lòng thử lại.",
+            "error_response_en": "Failed to change language. Please try again."
         },
         {
             "name": "change_currency",
             "natural_expression": "change currency",
-            "description": "Switch the currency used for cost calculations."
+            "description": "Switch the currency used for cost calculations.",
+            "response_vi": "Đơn vị tiền tệ đã được cập nhật",
+            "response_en": "Currency changed",
+            "error_response_vi": "Không thể thay đổi đơn vị tiền tệ. Vui lòng thử lại.",
+            "error_response_en": "Failed to change currency. Please try again."
         },
         {
             "name": "update_trip_name",
             "natural_expression": "update trip name",
-            "description": "Update the name of the current trip."
+            "description": "Update the name of the current trip.",
+            "response_vi": "Tên chuyến đi đã được cập nhật",
+            "response_en": "Trip name updated",
+            "error_response_vi": "Không thể cập nhật tên chuyến đi. Vui lòng thử lại.",
+            "error_response_en": "Failed to update trip name. Please try again."
         },
         {
             "name": "update_members",
             "natural_expression": "update number of members",
-            "description": "Change the number of members in the trip."
+            "description": "Change the number of members in the trip.",
+            "response_vi": "Số thành viên đã được cập nhật",
+            "response_en": "Number of members updated",
+            "error_response_vi": "Không thể cập nhật số thành viên. Vui lòng thử lại.",
+            "error_response_en": "Failed to update number of members. Please try again."
         },
         {
             "name": "update_start_date",
             "natural_expression": "update start date",
-            "description": "Set or update the trip's start date."
+            "description": "Set or update the trip's start date.",
+            "response_vi": "Ngày bắt đầu đã được cập nhật",
+            "response_en": "Start date updated",
+            "error_response_vi": "Không thể cập nhật ngày bắt đầu. Vui lòng thử lại.",
+            "error_response_en": "Failed to update start date. Please try again."
         },
         {
             "name": "update_end_date",
             "natural_expression": "update end date",
-            "description": "Set or update the trip's end date."
+            "description": "Set or update the trip's end date.",
+            "response_vi": "Ngày kết thúc đã được cập nhật",
+            "response_en": "End date updated",
+            "error_response_vi": "Không thể cập nhật ngày kết thúc. Vui lòng thử lại.",
+            "error_response_en": "Failed to update end date. Please try again."
         },
         {
             "name": "add_new_day",
             "natural_expression": "add new day",
-            "description": "Add a new day to the trip itinerary."
+            "description": "Add a new day to the trip itinerary.",
+            "response_vi": "Đã thêm ngày mới vào hành trình",
+            "response_en": "New day added to itinerary",
+            "error_response_vi": "Không thể thêm ngày mới vào hành trình. Vui lòng thử lại.",
+            "error_response_en": "Failed to add new day to itinerary. Please try again."
         },
         {
             "name": "swap_day",
             "natural_expression": "swap days",
-            "description": "Swap the order of two days in the itinerary."
+            "description": "Swap the order of two days in the itinerary.",
+            "response_vi": "Đã hoán đổi thứ tự các ngày trong hành trình",
+            "response_en": "Days swapped in itinerary",
+            "error_response_vi": "Không thể hoán đổi thứ tự các ngày. Vui lòng thử lại.",
+            "error_response_en": "Failed to swap days. Please try again."
         },
         {
             "name": "add_new_day_after_current",
             "natural_expression": "add new day after current",
-            "description": "Add a new day after the current day in the itinerary."
+            "description": "Add a new day after the current day in the itinerary.",
+            "response_vi": "Đã thêm ngày mới sau ngày hiện tại",
+            "response_en": "New day added after current day",
+            "error_response_vi": "Không thể thêm ngày mới sau ngày hiện tại. Vui lòng thử lại.",
+            "error_response_en": "Failed to add new day after current day. Please try again."
         },
         {
             "name": "add_new_day_after_ith",
             "natural_expression": "add new day after specific day",
-            "description": "Add a new day after the specified day in the itinerary."
+            "description": "Add a new day after the specified day in the itinerary.",
+            "response_vi": "Đã thêm ngày mới sau ngày được chọn",
+            "response_en": "New day added after specified day",
+            "error_response_vi": "Không thể thêm ngày mới sau ngày được chọn. Vui lòng thử lại.",
+            "error_response_en": "Failed to add new day after specified day. Please try again."
         },
         {
             "name": "view_all_days",
             "natural_expression": "view all days",
-            "description": "View an overview of all days in the trip."
+            "description": "View an overview of all days in the trip.",
+            "response_vi": "Hiển thị tổng quan tất cả các ngày trong chuyến đi",
+            "response_en": "Overview of all days displayed",
+            "error_response_vi": "Không thể hiển thị tổng quan các ngày. Vui lòng thử lại.",
+            "error_response_en": "Failed to display overview of all days. Please try again."
         },
         {
             "name": "delete_current_day",
             "natural_expression": "delete current day",
-            "description": "Delete the currently selected day from the itinerary."
+            "description": "Delete the currently selected day from the itinerary.",
+            "response_vi": "Đã xóa ngày hiện tại khỏi hành trình",
+            "response_en": "Current day deleted from itinerary",
+            "error_response_vi": "Không thể xóa ngày hiện tại khỏi hành trình. Vui lòng thử lại.",
+            "error_response_en": "Failed to delete current day from itinerary. Please try again."
         },
         {
             "name": "delete_all_days",
             "natural_expression": "delete all days",
-            "description": "Remove all days from the itinerary."
+            "description": "Remove all days from the itinerary.",
+            "response_vi": "Đã xóa tất cả các ngày khỏi hành trình",
+            "response_en": "All days deleted from itinerary",
+            "error_response_vi": "Không thể xóa tất cả các ngày khỏi hành trình. Vui lòng thử lại.",
+            "error_response_en": "Failed to delete all days from itinerary. Please try again."
         },
         {
             "name": "delete_range_of_days",
             "natural_expression": "delete range of days",
-            "description": "Delete a specified range of days from the itinerary."
+            "description": "Delete a specified range of days from the itinerary.",
+            "response_vi": "Đã xóa khoảng ngày được chọn khỏi hành trình",
+            "response_en": "Selected range of days deleted from itinerary",
+            "error_response_vi": "Không thể xóa khoảng ngày được chọn. Vui lòng thử lại.",
+            "error_response_en": "Failed to delete selected range of days. Please try again."
         },
         {
             "name": "optimize-route",
             "natural_expression": "find optimal route",
-            "description": "Find the most efficient route for the trip."
+            "description": "Find the most efficient route for the trip.",
+            "response_vi": "Đã tìm tuyến đường tối ưu cho chuyến đi",
+            "response_en": "Optimal route found for the trip",
+            "error_response_vi": "Không thể tìm tuyến đường tối ưu. Vui lòng thử lại.",
+            "error_response_en": "Failed to find optimal route. Please try again."
         },
         {
-            "name": "add_new_destination",
-            "natural_expression": "add new destination",
-            "description": "Add a new destination to the itinerary."
+            "name": "search_new_destination",
+            "natural_expression": "search new destination",
+            "description": "New destinations are returned from your request.",
+            "response_vi": "Những địa điểm mới được gợi ý ở bên tay trái của bạn",
+            "response_en": "New destinations are suggested on your left side",
+            "error_response_vi": "Không thể tìm kiếm địa điểm mới. Vui lòng thử lại.",
+            "error_response_en": "Failed to search for new destinations. Please try again."
         },
         {
             "name": "route-list",
             "natural_expression": "show route list",
-            "description": "Display the list of route segments for the trip."
+            "description": "Display the list of route segments for the trip.",
+            "response_vi": "Hiển thị danh sách các chặng đường",
+            "response_en": "Route list displayed",
+            "error_response_vi": "Không thể hiển thị danh sách các chặng đường. Vui lòng thử lại.",
+            "error_response_en": "Failed to display route list. Please try again."
         },
         {
             "name": "map-view",
             "natural_expression": "show map view",
-            "description": "Show the map view of the trip's destinations and routes."
+            "description": "Show the map view of the trip's destinations and routes.",
+            "response_vi": "Hiển thị bản đồ chuyến đi",
+            "response_en": "Map view displayed",
+            "error_response_vi": "Không thể hiển thị bản đồ chuyến đi. Vui lòng thử lại.",
+            "error_response_en": "Failed to display map view. Please try again."
         },
         {
             "name": "extend_map_view",
             "natural_expression": "extend map view",
-            "description": "Expand or extend the map view for better visualization."
+            "description": "Expand or extend the map view for better visualization.",
+            "response_vi": "Đã mở rộng bản đồ",
+            "response_en": "Map view extended",
+            "error_response_vi": "Không thể mở rộng bản đồ. Vui lòng thử lại.",
+            "error_response_en": "Failed to extend map view. Please try again."
         },
         {
             "name": "collapse_map_view",
             "natural_expression": "collapse map view",
-            "description": "Collapse the map view to its original size."
+            "description": "Collapse the map view to its original size.",
+            "response_vi": "Đã thu nhỏ bản đồ",
+            "response_en": "Map view collapsed",
+            "error_response_vi": "Không thể thu nhỏ bản đồ. Vui lòng thử lại.",
+            "error_response_en": "Failed to collapse map view. Please try again."
         },
         {
             "name": "find_route_of_pair_ith",
             "natural_expression": "find route between two destinations",
-            "description": "Find the route between a specific pair of destinations."
+            "description": "Find the route between a specific pair of destinations.",
+            "response_vi": "Đã tìm tuyến đường giữa hai điểm đến",
+            "response_en": "Route between two destinations found",
+            "error_response_vi": "Không thể tìm tuyến đường giữa hai điểm đến. Vui lòng thử lại.",
+            "error_response_en": "Failed to find route between two destinations. Please try again."
         },
         {
             "name": "show_saved_plan",
             "natural_expression": "show saved plans",
-            "description": "Display the list of saved trip plans."
+            "description": "Display the list of saved trip plans.",
+            "response_vi": "Hiển thị danh sách các kế hoạch đã lưu",
+            "response_en": "Saved plans displayed",
+            "error_response_vi": "Không thể hiển thị danh sách các kế hoạch đã lưu. Vui lòng thử lại.",
+            "error_response_en": "Failed to display saved plans. Please try again."
         },
         {
             "name": "delete_all_saved_plans",
             "natural_expression": "delete all saved plans",
-            "description": "Delete all saved trip plans."
+            "description": "Delete all saved trip plans.",
+            "response_vi": "Đã xóa tất cả các kế hoạch đã lưu",
+            "response_en": "All saved plans deleted",
+            "error_response_vi": "Không thể xóa tất cả các kế hoạch đã lưu. Vui lòng thử lại.",
+            "error_response_en": "Failed to delete all saved plans. Please try again."
         },
         {
             "name": "delete_saved_plan_ith",
             "natural_expression": "delete specific saved plan",
-            "description": "Delete a specific saved trip plan."
+            "description": "Delete a specific saved trip plan.",
+            "response_vi": "Đã xóa kế hoạch đã lưu được chọn",
+            "response_en": "Selected saved plan deleted",
+            "error_response_vi": "Không thể xóa kế hoạch đã lưu được chọn. Vui lòng thử lại.",
+            "error_response_en": "Failed to delete selected saved plan. Please try again."
         },
         {
             "name": "create_itinerary",
             "natural_expression": "create itinerary",
-            "description": "Generate a detailed itinerary for the trip."
+            "description": "Generate a detailed itinerary for the trip.",
+            "response_vi": "Đã tạo lịch trình chi tiết cho chuyến đi",
+            "response_en": "Detailed itinerary created",
+            "error_response_vi": "Không thể tạo lịch trình chi tiết. Vui lòng thử lại.",
+            "error_response_en": "Failed to create detailed itinerary. Please try again."
+        },
+        {
+            "name": "delete_current_plan",
+            "natural_expression": "delete current plan",
+            "description": "Delete the current trip plan.",
+            "response_vi": "Đã xóa kế hoạch hiện tại",
+            "response_en": "Current plan deleted",
+            "error_response_vi": "Không thể xóa kế hoạch hiện tại. Vui lòng thử lại.",
+            "error_response_en": "Failed to delete current plan. Please try again."
+        },
+        {
+            "name": "add_new_destination",
+            "natural_expression": "add new destination",
+            "description": "Add a new destination to the trip itinerary.",
+            "response_vi": "Đã thêm điểm đến mới vào hành trình",
+            "response_en": "New destination added to itinerary",
+            "error_response_vi": "Không thể thêm điểm đến mới vào hành trình. Vui lòng thử lại.",
+            "error_response_en": "Failed to add new destination to itinerary. Please try again."
+        },
+        {
+            "name": "confirm_add_new_destination",
+            "natural_expression": "confirm add new destination",
+            "description": "Confirm the addition of a possibly conflict new destination to the itinerary.",
+            "response_vi": "Đã thêm một điểm mới có thể xung đột vào hành trình",
+            "response_en": "Adding a possibly conflict new destination to itinerary",
+            "error_response_vi": "Không thể xác nhận thêm điểm đến mới. Vui lòng thử lại.",
+            "error_response_en": "Failed to confirm adding new destination. Please try again."
+        },
+        {
+            "name": "replace_destination_in_plan",
+            "natural_expression": "replace destination in plan",
+            "description": "Replace an existing destination in the itinerary with a new one.",
+            "response_vi": "Đã thay thế điểm đến trong hành trình",
+            "response_en": "Destination in itinerary replaced",
+            "error_response_vi": "Không thể thay thế điểm đến trong hành trình. Vui lòng thử lại.",
+            "error_response_en": "Failed to replace destination in itinerary. Please try again."
+        },
+        {
+            "name": "extract_type_from_prompt",
+            "natural_expression": "extract type from prompt",
+            "description": "Extract the type of command from the user's prompt.",
+            "response_vi": "Đã đưa ra các địa điểm có liên quan dựa trên yêu cầu của bạn",
+            "response_en": "Relevant destinations have been suggested based on your request",
+            "error_response_vi": "Không thể trích xuất loại từ yêu cầu. Vui lòng thử lại.",
+            "error_response_en": "Failed to extract type from prompt. Please try again."
         }
     ]
 }

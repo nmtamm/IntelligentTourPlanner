@@ -19,3 +19,13 @@ export async function translateViToEn(text: string): Promise<string> {
     const data = await response.json();
     return data.translation;
 }
+
+export async function detectLanguage(text: string): Promise<string> {
+    const response = await fetch(`${API_HOST}/api/translate/detect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+    });
+    const data = await response.json();
+    return data.language;
+}

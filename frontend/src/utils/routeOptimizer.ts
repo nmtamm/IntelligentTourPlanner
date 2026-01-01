@@ -1,5 +1,5 @@
 import { Destination } from '../types';
-import { getOptimizedRoute } from '../utils/geocode';
+
 /**
  * Optimizes the route using a simple nearest neighbor algorithm
  * For a production app, you would use a more sophisticated algorithm or API
@@ -37,17 +37,17 @@ export function optimizeRoute(destinations: Destination[]): Destination[] {
 function calculateDistance(a: Destination, b: Destination): number {
   // Haversine formula for distance between two points
   const R = 6371; // Earth's radius in km
-  const dLat = toRad(b.latitude - a.latitude);
-  const dLng = toRad(b.longitude - a.longitude);
-
-  const lat1 = toRad(a.latitude);
-  const lat2 = toRad(b.latitude);
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
 
   const h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
-
+  
   const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-
+  
   return R * c;
 }
 

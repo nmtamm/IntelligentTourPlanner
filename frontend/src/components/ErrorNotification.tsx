@@ -24,15 +24,15 @@ export function ErrorNotification({
   return (
     <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5 fade-in duration-300">
       <div className="bg-white border-l-4 border-red-500 rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-md">
-        <div className="shrink-0">
+        <div className="flex-shrink-0">
           <AlertCircle className="w-5 h-5 text-red-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-800 wrap-break-word">{message}</p>
+          <p className="text-sm text-gray-800 break-words">{message}</p>
         </div>
         <button
           onClick={onClose}
-          className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
           aria-label="Close notification"
         >
           <X className="w-4 h-4" />

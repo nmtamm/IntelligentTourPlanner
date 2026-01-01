@@ -1,12 +1,11 @@
 import { Card } from './ui/card';
-import { Button } from './ui/button';
 import { ArrowLeft, Navigation, MapPin, Clock, Route } from 'lucide-react';
-import { DayPlan, Destination } from '../types';
+import { DayPlan } from '../types';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import polyline from '@mapbox/polyline';
 import React, { useEffect } from 'react';
-import { t, getDirectionVi, osrmModifierVi } from '../utils/translations';
-import { translateEnToVi, translateViToEn } from '../utils/gtranslate';
+import { t, getDirectionVi, osrmModifierVi } from '../locales/translations';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { RouteInstruction } from '../types';
 
 interface RouteGuidanceProps {
@@ -33,6 +32,9 @@ function capitalizeFirst(str: string): string {
 export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuidanceProps) {
   // Language handling
   const lang = language.toLowerCase() as 'en' | 'vi';
+
+  // Theme colors
+  const { primary, secondary, accent } = useThemeColors();
 
   // Extract from/to destinations
   const from = day.optimizedRoute[segmentIndex];
@@ -85,17 +87,75 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
   }, [instructions, language]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tutorial="route-guidance">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {t('closeGuidance', lang)}
-        </Button>
+        <button
+          onClick={onBack}
+          className="px-4 py-2 rounded-lg relative overflow-hidden group inline-flex items-center gap-2"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            color: '#374151',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `${primary}10`;
+            e.currentTarget.style.transform = 'translateX(-4px) scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.transform = 'translateX(0) scale(1)';
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'translateX(-2px) scale(0.97)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'translateX(-4px) scale(1.05)';
+          }}
+        >
+          {/* Ripple effect on click */}
+          <span
+            className="absolute inset-0 opacity-0 group-active:opacity-100 pointer-events-none"
+            style={{
+              background: `radial-gradient(circle, ${primary}30 0%, transparent 70%)`,
+              transition: 'opacity 0.3s ease-out',
+            }}
+          />
+
+          {/* Shimmer effect on hover */}
+          <span
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none"
+            style={{
+              background: `linear-gradient(90deg, transparent 0%, ${primary}15 50%, transparent 100%)`,
+              animation: 'shimmer 2s ease-in-out infinite',
+            }}
+          />
+
+          {/* Arrow Icon with bounce animation */}
+          <ArrowLeft
+            className="w-4 h-4 transition-all duration-300 group-hover:-translate-x-2 group-hover:scale-125"
+            style={{
+              color: primary,
+              filter: `drop-shadow(0 0 6px ${primary}40)`,
+            }}
+          />
+
+          {/* Text with smooth transition */}
+          <span
+            className="relative z-10 transition-all duration-200 group-hover:tracking-wide"
+            style={{
+              color: '#374151',
+            }}
+          >
+            {t('closeGuidance', lang)}
+          </span>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Route Info */}
-        <Card className="p-6" data-tutorial="route-guidance">
+        <Card className="p-6">
           <div className="space-y-6">
             <h2 className="text-[#004DB6] flex items-center gap-2">
               <Navigation className="w-6 h-6" />
@@ -116,7 +176,7 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
               </div>
 
               <div className="flex items-center justify-center">
-                <div className="border-l-2 border-dashed border-gray-300 h-5"></div>
+                <div className="border-l-2 border-dashed border-gray-300 h-8"></div>
               </div>
 
               <div className="bg-red-50 rounded-lg p-4">
@@ -136,24 +196,23 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
                   <Route className="w-4 h-4" />
-                  <span className="text-sm">{t('distance', lang)}:</span>
-                  <p className="text-[#004DB6]">{distance.toFixed(2)} km</p>
+                  <span className="text-sm">{t('distance', lang)}</span>
                 </div>
-
+                <p className="text-[#004DB6]">{distance.toFixed(2)} km</p>
               </div>
               <div className="bg-[#DAF9D8] rounded-lg p-4">
                 <div className="flex items-center gap-2 text-[#004DB6] mb-1">
                   <Clock className="w-4 h-4" />
                   <span className="text-sm">{t('estimatedTime', lang)}</span>
-                  <p className="text-[#004DB6]">{Math.ceil(estimatedTime)} min</p>
                 </div>
+                <p className="text-[#004DB6]">{Math.ceil(estimatedTime)} min</p>
               </div>
             </div>
 
             {/* Directions */}
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
               <h3 className="text-gray-900">{t('turnByTurnDirections', lang)}</h3>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              <div className="space-y-2">
                 {instructions.length > 0 ? (
                   <div className="mb-4">
 
@@ -188,11 +247,11 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
         </Card>
 
         {/* GPS Map Visualization */}
-        <Card className="p-6 lg:col-span-2">
-          <div className="flex flex-col h-full space-y-4">
+        <Card className="p-6">
+          <div className="space-y-4">
             <h3 className="text-gray-900">{t('gpsNavigation', lang)}</h3>
 
-            <div className="bg-gray-50 rounded-lg overflow-hidden border flex-1 relative">
+            <div className="bg-gray-50 rounded-lg overflow-hidden border h-[600px] relative">
               <MapContainer
                 center={[fromLat, fromLng]}
                 zoom={13}
@@ -226,7 +285,6 @@ export function RouteGuidance({ day, segmentIndex, onBack, language }: RouteGuid
                 )}
               </MapContainer>
             </div>
-
           </div>
         </Card>
       </div>

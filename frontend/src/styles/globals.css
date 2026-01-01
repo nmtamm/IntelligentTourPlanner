@@ -1,6 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap');
-
-@import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -11,13 +8,13 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #004DB6;
+  --primary: #004db6;
   --primary-foreground: #ffffff;
-  --secondary: #70C573;
+  --secondary: #70c573;
   --secondary-foreground: #ffffff;
-  --muted: #DAF9D8;
-  --muted-foreground: #6B7280;
-  --accent: #70C573;
+  --muted: #daf9d8;
+  --muted-foreground: #6b7280;
+  --accent: #70c573;
   --accent-foreground: #ffffff;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
@@ -27,21 +24,21 @@
   --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #004DB6;
-  --chart-1: #004DB6;
-  --chart-2: #70C573;
-  --chart-3: #5E885D;
-  --chart-4: #DAF9D8;
+  --ring: #004db6;
+  --chart-1: #004db6;
+  --chart-2: #70c573;
+  --chart-3: #5e885d;
+  --chart-4: #daf9d8;
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #004DB6;
+  --sidebar-primary: #004db6;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #DAF9D8;
-  --sidebar-accent-foreground: #6B7280;
-  --sidebar-border: #5E885D;
-  --sidebar-ring: #004DB6;
+  --sidebar-accent: #daf9d8;
+  --sidebar-accent-foreground: #6b7280;
+  --sidebar-border: #5e885d;
+  --sidebar-ring: #004db6;
 }
 
 .dark {
@@ -115,9 +112,13 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary-foreground: var(
+    --sidebar-primary-foreground
+  );
   --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent-foreground: var(
+    --sidebar-accent-foreground
+  );
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
@@ -136,7 +137,9 @@
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
  */
 @layer base {
-  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+  :where(
+    :not(:has([class*=" text-"]), :not(:has([class^="text-"])))
+  ) {
     h1 {
       font-size: var(--text-2xl);
       font-weight: var(--font-weight-medium);
@@ -189,4 +192,177 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* Bounce animation for filter chips */
+@keyframes bounce-subtle {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  25% {
+    transform: scale(1.03) translateY(-2px);
+  }
+  50% {
+    transform: scale(0.99) translateY(1px);
+  }
+  75% {
+    transform: scale(1.01) translateY(-0.5px);
+  }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 0.5s
+    cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Slide down animation for navigation button */
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Pulse animation for navigation button glow */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Shimmer animation for back button */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Fade in scale animation for modals */
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Pulse border animation for tutorial highlight */
+@keyframes pulse-border {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* Bounce effect for login/register buttons */
+@keyframes bounce-button {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.08);
+  }
+  50% {
+    transform: scale(0.96);
+  }
+  70% {
+    transform: scale(1.04);
+  }
+  85% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Shimmer effect for buttons */
+@keyframes shimmer-button {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Pulse glow effect for buttons */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(43, 123, 168, 0.3), 
+                0 0 40px rgba(43, 123, 168, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(43, 123, 168, 0.5), 
+                0 0 60px rgba(43, 123, 168, 0.2);
+  }
+}
+
+/* Pulse glow effect for orange buttons */
+@keyframes pulse-glow-orange {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 140, 105, 0.3), 
+                0 0 40px rgba(255, 140, 105, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 140, 105, 0.5), 
+                0 0 60px rgba(255, 140, 105, 0.2);
+  }
+}
+
+/* Gradient shift animation */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Utility classes for button animations */
+.btn-bounce:hover {
+  animation: bounce-button 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.btn-pulse-glow-orange {
+  animation: pulse-glow-orange 2s ease-in-out infinite;
+}
+
+.btn-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
 }

@@ -1,7 +1,8 @@
 import { geocodeDestination } from "./geocode";
 import { API_HOST } from './config';
 import { fetchTouristCategories } from "./categories";
-
+import { detectCurrencyAndNormalizePrice } from "./parseAmount";
+import { Destination } from "../types";
 export async function fetchSerpLocalResults(query: string, ll: string) {
     const response = await fetch(
         `${API_HOST}/api/serp/locations?query=${encodeURIComponent(query)}&ll=${encodeURIComponent(ll)}`,
@@ -60,8 +61,6 @@ export async function generatePlaces(result, userLocation) {
         longitude = userLocation?.longitude || 0;
     }
 
-    console.log("Using coordinates:", latitude, longitude);
-
     // Fetch for non-additional categories
     for (let i = 0; i < nonAdditionalItems.length; i++) {
         const item = nonAdditionalItems[i];
@@ -104,12 +103,16 @@ export async function generatePlaces(result, userLocation) {
     if (allPlaces.length > totalPlaces) {
         allPlaces = allPlaces.slice(0, totalPlaces);
     }
-    return allPlaces;
+    return {
+        allPlaces: allPlaces,
+        city: result.starting_point,
+        latitude,
+        longitude
+    };
 }
 
 export async function fetchPlacesData() {
     const result = await fetchTouristCategories();
-    console.log("Fetched Categories:", result);
 
     // Dinh Doc Lap
     // const latitude = 10.7770348;
@@ -136,16 +139,13 @@ export async function fetchPlacesData() {
     const allPlaces: any[] = [];
     for (const category of result) {
         const places = await fetchSerpLocalResults(category, ll);
-        console.log(`Category: ${category}, Places Found: ${places.length}`);
         allPlaces.push(...places);
     }
 
-    console.log(`Total Places Fetched: ${allPlaces.length}`);
     return allPlaces;
 }
 
 export async function savePlacesToBackend(allPlaces: any[]) {
-    console.log("Sending places to backend:", allPlaces);
     const response = await fetch(`${API_HOST}/api/places/save`, {
         method: 'POST',
         headers: {
@@ -174,4 +174,77 @@ export async function getPlaceById(id: string) {
     const res = await fetch(`${API_HOST}/api/places/byid?id=${id}`);
     if (!res.ok) return null;
     return await res.json();
+}
+
+export async function fetchUniqueTopTypes() {
+    const response = await fetch(`${API_HOST}/api/places/unique-top-types`, {
+        method: "GET",
+        headers: {
+            "Accept": "application/json"
+        }
+    });
+    if (!response.ok) {
+        console.error("API error:", response.status, await response.text());
+        return null;
+    }
+    return await response.json();
+}
+
+export function mapPlaceToDestination(
+    place: any,
+    currency: 'USD' | 'VND',
+    onCurrencyToggle: () => void,
+    language: "EN" | "VI"
+): Destination {
+    const { detectedCurrency, normalizedPrice } = detectCurrencyAndNormalizePrice(place.price, currency);
+    if (detectedCurrency !== currency) {
+        onCurrencyToggle();
+    }
+
+    // Use the correct name field based on language
+    let name = "";
+    if (language === "EN") {
+        // If en_name is a JSON array or string
+        name = Array.isArray(place.en_name)
+            ? place.en_name[0]
+            : (place.en_name || place.title);
+    } else {
+        name = Array.isArray(place.vi_name)
+            ? place.vi_name[0]
+            : (place.vi_name || place.title);
+    }
+
+    return {
+        id: place.place_id,
+        name: name,
+        address: place.address || "",
+        costs: [{
+            id: `${Date.now()}-0`,
+            amount: normalizedPrice,
+            detail: "",
+            originalAmount: normalizedPrice,
+            originalCurrency: detectedCurrency,
+        }],
+        latitude: place.gps_coordinates?.latitude,
+        longitude: place.gps_coordinates?.longitude,
+        // ...add other fields as needed
+    };
+}
+
+export async function fetchNearbyPlaces(type: string, latitude: number, longitude: number, radius_m: number = 1000) {
+    const response = await fetch(
+        `${API_HOST}/api/places/nearby?type=${encodeURIComponent(type)}&latitude=${latitude}&longitude=${longitude}&radius_m=${radius_m}`,
+        {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        }
+    );
+    if (!response.ok) {
+        console.error("API error:", response.status, await response.text());
+        return [];
+    }
+    const data = await response.json();
+    return data.places || [];
 }

@@ -30,6 +30,7 @@ class User(UserBase):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    avatar = Column(Text, nullable=True)
 
     # Relationship
     trips = relationship("Trip", back_populates="user", cascade="all, delete-orphan")

@@ -28,6 +28,7 @@ const loginUser = async (credentials) => {
 const registerUser = async (userData) => {
     try {
         await axios.post(`${API_URL}/auth/register`, userData);
+        console.log(userData);
     } catch (error) {
         console.error("Registration error:", error);
         throw error;
@@ -128,7 +129,27 @@ const deleteTrip = async (tripId, token) => {
         throw error;
     }
 };
-
+const changePassword = async (currentPassword, newPassword, token) => {
+    try {
+        const response = await axios.put(
+            `${API_URL}/auth/change-password`,
+            {
+                current_password: currentPassword,
+                new_password: newPassword,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error("Change password error:", error);
+        throw error;
+    }
+};
 export {
     loginUser,
     registerUser,
@@ -137,5 +158,6 @@ export {
     getTrips,
     getTrip,
     updateTrip,
-    deleteTrip
+    deleteTrip,
+    changePassword,
 };
