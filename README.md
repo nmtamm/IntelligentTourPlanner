@@ -55,7 +55,7 @@ Run the following commands to install Polyline to draw optimal route using OSRM:
 npm install @mapbox/polyline
 ```
 ## Download images
-Download images in the following [link](https://drive.google.com/file/d/1xxUfasr8J5LGjvUezsKU1snX9a4FTarp/view?usp=sharing) and put them in ```frontend/src/assets/```
+Download images in the following [link](https://drive.google.com/file/d/1xxUfasr8J5LGjvUezsKU1snX9a4FTarp/view?usp=sharing) and put them in ```frontend/assets/```
 
 ## Run
 ```

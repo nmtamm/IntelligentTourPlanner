@@ -821,18 +821,7 @@ export function CustomMode({
   const currentDay = localTripData.days.find(
     (d) => d.id === selectedDay,
   );
-  if (viewMode === "route-guidance" && currentDay && routeSegmentIndex !== null) {
-    return (
-      <RouteGuidance
-        day={currentDay}
-        segmentIndex={routeSegmentIndex}
-        onBack={() => {
-          setViewMode("single");
-        }}
-        language={language}
-      />
-    );
-  }
+
 
   useEffect(() => {
     if (!selectedPlaceInViewMode) return;
@@ -852,6 +841,18 @@ export function CustomMode({
     fetchDetails();
   }, [currentDay.destinations]);
 
+  if (viewMode === "route-guidance" && currentDay && routeSegmentIndex !== null) {
+    return (
+      <RouteGuidance
+        day={currentDay}
+        segmentIndex={routeSegmentIndex}
+        onBack={() => {
+          setViewMode("single");
+        }}
+        language={language}
+      />
+    );
+  }
   // View Mode Layout: Map (50%) | ViewModePlacesGallery & ViewModePlaceDetails (50%), No ChatBox
   if (mode === "view") {
     return (
